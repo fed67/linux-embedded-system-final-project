@@ -40,4 +40,6 @@ addtask deploy after do_compile
 # Add the compiled overlay to the kernel image for bootloader to find
 # IMAGE_BOOT_FILES += " ${DEPLOYDIR}/gpio-led.dtbo"
 
-
+# Add the following to local.conf
+# IMAGE_BOOT_FILES:append = " gpio-led.dtbo;overlays/gpio-led.dtbo"
+# RPI_EXTRA_CONFIG = ' \ndtoverlay=gpio-led,gpio=19,label=heart,trigger=heartbeat \n'
