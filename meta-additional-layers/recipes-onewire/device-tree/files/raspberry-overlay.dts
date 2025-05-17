@@ -1,0 +1,10 @@
+/dts-v1/;
+/plugin/;
+
+&leds {
+    bar {
+		label = "bar"; 
+		default_state = "off";
+	};
+};
+
