@@ -17,17 +17,16 @@ inherit deploy
 
 DTB_FILE = "raspberry-overlay.dtbo"
 do_install() {
-    install -d ${D}${sysconfdir}/myapp
-    install -m 0644 ${WORKDIR}/raspberry-overlay.dts ${D}${sysconfdir}/myapp/
+    install -d ${D}${datadir}/dts-overlay-src
+    install -m 0644 ${WORKDIR}/raspberry-overlay.dts ${D}${datadir}/dts-overlay-src/
 }
 FILES:${PN} += " \
-/etc/myapp \
-/etc/myapp/raspberry-overlay.dts \
+${datadir}/dts-overlay-src \
+${datadir}/dts-overlay-src/raspberry-overlay.dts \
 "
 
-
 do_deploy() {
-    install -m 0664 ${B}/raspberry-overlay.dtbo ${DEPLOYDIR}/gpio-led.dtbo
+    install -m 0664 ${B}/raspberry-overlay.dtbo ${DEPLOYDIR}/my-gpio-led.dtbo
 }
 
 addtask deploy after do_compile
