@@ -5,7 +5,7 @@
 #include <linux/gpio/consumer.h>        /* For GPIO Descriptor interface */
 // #include <linux/interrupt.h>            /* For IRQ */
 #include <linux/of.h>                   /* For DT*/
-
+#include <linux/delay.h>
 
 
 // static struct class *onewire_class;
@@ -30,49 +30,106 @@
 struct my_driver_data {
     struct gpio_desc *status_led;
 };
+static struct gpio_desc *my_led = NULL;
+
 
 static int onewire_probe(struct platform_device *pdev)
 {
     pr_info("onewire:  onewire_probe");
-    struct my_driver_data *data;
-    // int ret; 
 
-    data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
-    if (!data)
-        return -ENOMEM;
+    struct device *dev = &pdev->dev;
+	const char *label;
+	int my_value, ret;
 
-    data->status_led = devm_gpiod_get(&pdev->dev, "status-led", GPIOD_OUT_LOW);
-    if (IS_ERR(data->status_led)) {
-        dev_err(&pdev->dev, "Failed to get status-led GPIO\n");
-        // return PTR_ERR(data->status_led);
-    }
+	printk("dt_gpio - Now I am in the probe function!\n");
 
-    data->status_led = devm_gpiod_get(&pdev->dev, "gpios", GPIOD_OUT_LOW);
-    if (IS_ERR(data->status_led)) {
-        dev_err(&pdev->dev, "Failed to get status-led GPIO\n");
-        return PTR_ERR(data->status_led);
-    }
+	/* Check for device properties */
+	if(!device_property_present(dev, "label")) {
+		printk("dt_gpio - Error! Device property 'label' not found!\n");
+		return -1;
+	}
+	if(!device_property_present(dev, "my_value")) {
+		printk("dt_gpio - Error! Device property 'my_value' not found!\n");
+		return -1;
+	}
+	if(!device_property_present(dev, "green-led-gpio")) {
+		printk("dt_gpio - Error! Device property 'green-led-gpio' not found!\n");
+		return -1;
+	}
 
-    return 0;
+	/* Read device properties */
+	ret = device_property_read_string(dev, "label", &label);
+	if(ret) {
+		printk("dt_gpio - Error! Could not read 'label'\n");
+		return -1;
+	}
+	printk("dt_gpio - label: %s\n", label);
+	ret = device_property_read_u32(dev, "my_value", &my_value);
+	if(ret) {
+		printk("dt_gpio - Error! Could not read 'my_value'\n");
+		return -1;
+	}
+	printk("dt_gpio - my_value: %d\n", my_value);
 
-    // Now you can control it
-    gpiod_set_value(data->status_led, 1); // turn on LED (if active low)
+	/* Init GPIO */
+	my_led = gpiod_get(dev, "green-led", GPIOD_OUT_LOW);
+	if(IS_ERR(my_led)) {
+		printk("dt_gpio - Error! Could not setup the GPIO\n");
+		return -1 * IS_ERR(my_led);
+	}
 
-    platform_set_drvdata(pdev, data);
+    ret = gpiod_get_value(my_led);
+    printk("get value 1 %d\n", ret);
+    ret = gpiod_get_raw_value(my_led);
+    printk("get raw value 1 %d\n", ret);
 
-    pr_info("dummy char module loaded\n");
+    gpiod_set_value(my_led, 1);
+
+    udelay(10);
+
+    ret = gpiod_get_value(my_led);
+    printk("get value 2 %d\n", ret);
+    ret = gpiod_get_raw_value(my_led);
+    printk("get raw value 2 %d\n", ret);
+    // gpiod_set_value(my_led, 0); // turn on LED (if active low)
+
+
+    // return 0;
+
+    // // Now you can control it
+    // gpiod_set_value(data->status_led, 1); // turn on LED (if active low)
+
+    // platform_set_drvdata(pdev, data);
+
+    // pr_info("dummy char module loaded\n");
     return 0;
 }
 
 
+//21
 static int onewire_remove(struct platform_device *pdev)
 {
     pr_info("onewire:  onewire_remove");
     // gpiod_put(red);
     // gpiod_put(green);
-    struct my_driver_data *data = platform_get_drvdata(pdev);
+    // struct my_driver_data *data = platform_get_drvdata(pdev);
 
-    gpiod_set_value(data->status_led, 0); // turn off LED on remove
+    // gpiod_set_value(data->status_led, 0); // turn off LED on remove
+
+    int ret = gpiod_get_value(my_led);
+    printk("get value 1 %d\n", ret);
+    ret = gpiod_get_raw_value(my_led);
+    printk("get raw value 1 %d\n", ret);
+
+    gpiod_set_value(my_led, 0);
+    udelay(10);
+    
+    ret = gpiod_get_value(my_led);
+    printk("get value 2 %d\n", ret);
+    ret = gpiod_get_raw_value(my_led);
+    printk("get raw value 2 %d\n", ret);
+
+    gpiod_put(my_led);
     pr_info("good bye reader!\n");
     // return 0;
 

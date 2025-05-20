@@ -1,16 +1,16 @@
 /dts-v1/;
 /plugin/;
 
+#include <dt-bindings/gpio/gpio.h>
+
 
 &{/} {
+
     my-gpio-led {
 		compatible = "myvendor,my-gpio-led";
-		label = "my-gpio-device"; 
-
-		status-led {
-			default_state = "off";
-			status = "ok";
-			gpios = <&gpio 2 0>
-		};
+		status = "okay";
+		label = "Test";
+		my_value = <12>;
+		green-led-gpio = <&gpio 17 0>; 
 	};
 };
