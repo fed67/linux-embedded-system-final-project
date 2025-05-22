@@ -1,36 +1,120 @@
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/kernel.h>
+#include <linux/cdev.h>
+#include <linux/uaccess.h>
+#include <linux/fs.h>
+
 #include <linux/platform_device.h>      /* For platform devices */
 #include <linux/gpio/consumer.h>        /* For GPIO Descriptor interface */
 // #include <linux/interrupt.h>            /* For IRQ */
 #include <linux/of.h>                   /* For DT*/
 #include <linux/delay.h>
 
-
-// static struct class *onewire_class;
-// static struct device *onewire_device;
-
-// static struct gpio_desc *red, *green;
-// static int major;
-
 #define MAX_SIZE 128
-#define DEVICE_NAME "onewire_dev"
 
 #define MODULE_NAME "onewire_dev"
 
-#define GPIO_PIN 2
-// static struct gpio_desc *io_pin;
-
-// struct onewire_device_data {
-//     struct gpio_desc *led_gpio;
-//     const char *label;
-// };
-
-struct my_driver_data {
-    struct gpio_desc *status_led;
+// Structure to hold device-specific data
+struct onewire_dev {
+    char *kernel_buffer;
+    int buffer_size;
+    struct cdev cdev;
 };
-static struct gpio_desc *my_led = NULL;
+
+struct gpio_desc *my_led;
+static struct onewire_dev *s_dev = NULL;
+static int major_number = 0;
+static dev_t dev_num;
+
+static struct class *cls;
+
+// Define file operation functions
+static int onewire_open(struct inode *inode, struct file *filp)
+{
+    struct onewire_dev *dev;
+    dev = container_of(inode->i_cdev, struct onewire_dev, cdev);
+    filp->private_data = dev; // Store device-specific data in file pointer
+    printk(KERN_INFO "%s: Device opened\n", MODULE_NAME);
+
+    return 0;
+}
+
+static int onewire_release(struct inode *inode, struct file *filp)
+{
+    printk(KERN_INFO "%s: Device released\n", MODULE_NAME);
+    return 0;
+}
+
+static ssize_t onewire_read(struct file *filp, char __user *buf, size_t count, loff_t *f_pos)
+{
+    // struct onewire_dev *dev = (struct onewire_dev *)filp->private_data;
+    ssize_t bytes_read = 0;
+
+    // if (*f_pos >= dev->buffer_size) {
+    //     return 0; // End of file
+    // }
+
+    if (count > s_dev->buffer_size - *f_pos) {
+        count = s_dev->buffer_size - *f_pos;
+    }
+
+    if (copy_to_user(buf, s_dev->kernel_buffer + *f_pos, count)) {
+        return -EFAULT; // Failed to copy to user space
+    }
+
+    *f_pos += count;
+    bytes_read = count;
+    printk(KERN_INFO "%s: Read %zu bytes from device (offset: %lld)\n", MODULE_NAME, count, *f_pos);
+    return bytes_read;
+}
+
+static ssize_t onewire_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos)
+{
+    // struct onewire_dev *dev = (struct onewire_dev *)filp->private_data;
+    ssize_t bytes_written = 0;
+
+    pr_info("copy count %u f_pos %lu \n", count, *f_pos);
+    pr_info("dev->buffer_size %lu \n", s_dev->buffer_size);
+
+
+    // if (*f_pos >= dev->buffer_size) {
+    //     return -ENOSPC; // No space left
+    // }
+
+    if (count > s_dev->buffer_size - *f_pos) {
+        count = s_dev->buffer_size - *f_pos;
+    }
+
+    if (copy_from_user(s_dev->kernel_buffer + *f_pos, buf, count)) {
+        return -EFAULT; // Failed to copy from user space
+    }
+
+    pr_info("copy_from user space scceeded\n");
+    *f_pos += count;
+    bytes_written = count;
+
+    pr_info("copy_from user space scceeded\n");
+
+    
+    if(count > 0) {
+        pr_info("value");
+        int value = s_dev->kernel_buffer[0] - '0';
+        pr_info("value %i\n", value);
+        gpiod_set_value(my_led, value);
+    }
+
+    printk(KERN_INFO "%s: Wrote %zu bytes to device (offset: %lld)\n", MODULE_NAME, count, *f_pos);
+    return bytes_written;
+}
+
+// File operations structure
+static struct file_operations fops = {
+    .open = onewire_open,
+    .release = onewire_release,
+    .read = onewire_read,
+    .write = onewire_write,
+};
+
 
 
 static int onewire_probe(struct platform_device *pdev)
@@ -94,15 +178,59 @@ static int onewire_probe(struct platform_device *pdev)
     // gpiod_set_value(my_led, 0); // turn on LED (if active low)
 
 
-    // return 0;
+    //initialize character device
 
-    // // Now you can control it
-    // gpiod_set_value(data->status_led, 1); // turn on LED (if active low)
 
-    // platform_set_drvdata(pdev, data);
+    // ret = alloc_chrdev_region(&dev_num, 0, 1, MODULE_NAME);
+    // if (ret < 0) {
+    //     printk(KERN_ERR "%s: Failed to allocate character device region\n", MODULE_NAME);
+    //     return ret;
+    // }
 
-    // pr_info("dummy char module loaded\n");
+
+    s_dev = kmalloc(sizeof(struct onewire_dev), GFP_KERNEL);
+    if (!s_dev) {
+        ret = -ENOMEM;
+        printk(KERN_ERR "%s: Failed to allocate device structure\n", MODULE_NAME);
+        goto unregister_region;
+    }
+    memset(s_dev, 0, sizeof(struct onewire_dev));
+
+    // Allocate kernel buffer
+    // s_dev->buffer_size = PAGE_SIZE; // Use page size for buffer
+    s_dev->buffer_size = 512; // Use page size for buffer
+    s_dev->kernel_buffer = kmalloc(s_dev->buffer_size, GFP_KERNEL);
+    if (!s_dev->kernel_buffer) {
+        ret = -ENOMEM;
+        printk(KERN_ERR "%s: Failed to allocate kernel buffer\n", MODULE_NAME);
+        goto free_device_struct;
+    }
+    memset(s_dev->kernel_buffer, 0, sizeof(s_dev->buffer_size));
+
+    // Initialize the character device
+    major_number = register_chrdev(0, MODULE_NAME, &fops);
+    if(major_number < 0) {
+        pr_alert("Registering char device failed with %d\n", major_number);
+        goto free_kernel_buffer;
+    }
+ 
+    pr_info("I was assigned major number %d.\n", major_number);
+ 
+    cls= class_create(MODULE_NAME);
+
+    device_create(cls, NULL, MKDEV(major_number, 0), NULL, MODULE_NAME);
+ 
+    pr_info("Device created on /dev/%s\n", MODULE_NAME);
+    
     return 0;
+
+free_kernel_buffer:
+    kfree(s_dev->kernel_buffer);
+free_device_struct:
+    kfree(s_dev);
+unregister_region:
+    unregister_chrdev_region(dev_num, 1);
+    return ret;
 }
 
 
@@ -133,21 +261,19 @@ static int onewire_remove(struct platform_device *pdev)
     pr_info("good bye reader!\n");
     // return 0;
 
+
+    device_destroy(cls, MKDEV(major_number, 0));
+    class_destroy(cls);
+
+    //unregister
+    unregister_chrdev(major_number, MODULE_NAME);
+
     return 0;
 }
 
-// struct file_operations fops = {
-//     .owner = THIS_MODULE,
-//     .open = onewire_open,
-//     .release = onewire_close,
-//     .read = onewire_read,
-//     .write = onewire_write,lsmod
-
-//     .unlocked_ioctl = onewire_ioctl,
-// };
 
 static const struct of_device_id my_of_match[] = {
-    { .compatible = "myvendor,my-gpio-led" }, //brcm,bcm2835-gpio
+    { .compatible = "my-onewire" }, //brcm,bcm2835-gpio
     { /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, my_of_match);
@@ -162,6 +288,75 @@ struct platform_driver my_driver = {
 };
 
 module_platform_driver(my_driver);
+
+// // Initialization function
+// static int __init onewire_dev_init(void)
+// {
+//     int result;
+
+//     result = alloc_chrdev_region(&dev_num, 0, 1, MODULE_NAME);
+//     if (result < 0) {
+//         printk(KERN_ERR "%s: Failed to allocate character device region\n", MODULE_NAME);
+//         return result;
+//     }
+//     major_number = MAJOR(dev_num);
+//     printk(KERN_INFO "%s: Major number allocated: %d\n", MODULE_NAME, major_number);
+
+//     s_dev = kmalloc(sizeof(struct onewire_dev), GFP_KERNEL);
+//     if (!s_dev) {
+//         result = -ENOMEM;
+//         printk(KERN_ERR "%s: Failed to allocate device structure\n", MODULE_NAME);
+//         goto unregister_region;
+//     }
+//     memset(s_dev, 0, sizeof(struct onewire_dev));
+
+//     // Allocate kernel buffer
+//     s_dev->buffer_size = PAGE_SIZE; // Use page size for buffer
+//     s_dev->kernel_buffer = kmalloc(s_dev->buffer_size, GFP_KERNEL);
+//     if (!s_dev->kernel_buffer) {
+//         result = -ENOMEM;
+//         printk(KERN_ERR "%s: Failed to allocate kernel buffer\n", MODULE_NAME);
+//         goto free_device_struct;
+//     }
+
+//     // Initialize the character device
+//     cdev_init(&s_dev->cdev, &fops);
+//     s_dev->cdev.owner = THIS_MODULE;
+
+//     // Add the character device to the system
+//     result = cdev_add(&s_dev->cdev, dev_num, 1);
+//     if (result < 0) {
+//         printk(KERN_ERR "%s: Failed to add character device\n", MODULE_NAME);
+//         goto free_kernel_buffer;
+//     }
+
+//     printk(KERN_INFO "%s: Device registered successfully. Create device file using:\n", MODULE_NAME);
+//     printk(KERN_INFO "      mknod /dev/%s c %d %d\n", MODULE_NAME, major_number, MINOR(dev_num));
+
+//     return 0;
+
+// free_kernel_buffer:
+//     kfree(s_dev->kernel_buffer);
+// free_device_struct:
+//     kfree(s_dev);
+// unregister_region:
+//     unregister_chrdev_region(dev_num, 1);
+//     return result;
+// }
+
+// // Exit function
+// static void __exit onewire_dev_exit(void)
+// {
+//     cdev_del(&s_dev->cdev);
+//     kfree(s_dev->kernel_buffer);
+//     kfree(s_dev);
+//     unregister_chrdev_region(dev_num, 1);
+//     printk(KERN_INFO "%s: Device unregistered\n", MODULE_NAME);
+// }
+
+// module_init(onewire_dev_init);
+// module_exit(onewire_dev_exit);
+
 
 MODULE_LICENSE("GPL");
 // MODULE_LICENSE("Proprietary");

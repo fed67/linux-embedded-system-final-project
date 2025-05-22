@@ -6,8 +6,8 @@
 
 &{/} {
 
-    my-gpio-led {
-		compatible = "myvendor,my-gpio-led";
+    my-onewire {
+		compatible = "my-onewire";
 		status = "okay";
 		label = "Test";
 		my_value = <12>;
