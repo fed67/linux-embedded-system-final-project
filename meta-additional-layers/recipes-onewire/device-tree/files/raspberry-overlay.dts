@@ -1,0 +1,16 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+
+
+&{/} {
+
+    my-onewire {
+		compatible = "my-onewire";
+		status = "okay";
+		label = "Test";
+		my_value = <12>;
+		onewire-gpio = <&gpio 17 0>; 
+	};
+};

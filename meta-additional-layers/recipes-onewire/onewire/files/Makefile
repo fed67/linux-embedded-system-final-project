@@ -1,7 +1,7 @@
 obj-m += onewire_dev.o
 
 #Define variable if it is built outside of yocto
-KERNEL_SRC ?= /lib/modules/$(shell uname -r)/build
+# KERNEL_SRC ?= /lib/modules/$(shell uname -r)/build
 
 # all:
 # 	$(MAKE) -C $(KERNEL_SRC) M=$(PWD) modules
@@ -10,8 +10,13 @@ KERNEL_SRC ?= /lib/modules/$(shell uname -r)/build
 # 	$(MAKE) -C $(KERNEL_SRC) M=$(PWD) clean
 
 
+SRC := $(shell pwd)
+
 all:
-	$(MAKE) -C $(KERNEL_SRC) M=$(PWD) modules
+	$(MAKE) -C $(KERNEL_SRC) M=$(SRC)
+
+modules_install:
+	$(MAKE) -C $(KERNEL_SRC) M=$(SRC) modules_install
 
 clean:
-	$(MAKE) -C $(KERNEL_SRC) M=$(PWD) clean
+	$(MAKE) -C $(KERNEL_SRC) M=$(SRC) clean

@@ -1,134 +1,249 @@
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/fs.h>
-#include <linux/device.h>
-#include <linux/uaccess.h>
-
-
 #include <linux/cdev.h>
 #include <linux/fs.h>
 #include <linux/init.h>
-#include <linux/ioctl.h>
 #include <linux/module.h>
-#include <linux/slab.h>
 #include <linux/uaccess.h>
-#include <linux/version.h>
 
-static dev_t dev;
-static struct class *dev_class;
-// static struct cdev test_ioctl_cdev;
-
-static int major;
+#include <linux/gpio/consumer.h>   /* For GPIO Descriptor interface */
+#include <linux/platform_device.h> /* For platform devices */
+// #include <linux/interrupt.h>            /* For IRQ */
+#include <linux/delay.h>
+#include <linux/of.h> /* For DT*/
 
 #define MAX_SIZE 128
-#define DEVICE_NAME "onewire"
 
-static ssize_t onewire_read(struct file *file, char __user *buf, size_t count, loff_t *ppos) {
-    return 0;
-}
+#define MODULE_NAME "onewire_dev"
 
-static ssize_t onewire_write(struct file *filp, const char __user *buff, size_t len, loff_t *off) {
-
-    // char buffer[MAX_SIZE];
-    char* buffer = (char*) kzalloc(sizeof(char)*len, GFP_KERNEL);
-
-    // size_t buffer_size = min(MAX_SIZE, len);
-    if(copy_from_user(buffer, buff, len)) // 20 works
-        return -1;
-        // return-EFAULT;
-
-    // if(len < MAX_SIZE) {
-    //     printk("Received from user %lu \n", len);
-    // }
-    printk("Received from user %lu \n", len);
-
-    kfree(buffer);
-
-    return len;
-}
-
-
-static long onewire_ioctl(struct file *file, unsigned int cmd, unsigned long arg) {
-    // Implement ioctl operation
-    return 0;
-}
-
-struct file_operations fops = {
-    .owner = THIS_MODULE,
-    .read = onewire_read,
-    .write = onewire_write,
-    .unlocked_ioctl = onewire_ioctl,
+// Structure to hold device-specific data
+struct onewire_dev
+{
+    char *kernel_buffer;
+    int buffer_size;
+    struct cdev cdev;
 };
 
-    // if (alloc_chrdev_region(&dev, 0, 1, "onewire") < 0) {
-    //     printk(KERN_ERR "Failed to allocate char device\n");
-    //     return -1;
-    // }
+struct gpio_desc *onewire_pin;
+static struct onewire_dev *s_dev = NULL;
+static int major_number = 0;
+static dev_t dev_num;
 
-    // dev_class = class_create(THIS_MODULE, "onewire");
-    // if (IS_ERR(dev_class)) {
-    //     unregister_chrdev_region(dev, 1);
-    //     printk(KERN_ERR "Failed to create char device class\n");
-    //     return PTR_ERR(dev_class);
-    // }
-    // device_create(dev_class, NULL, dev, NULL, "onewire");
-    // printk(KERN_INFO "My Device Character Driver Loaded\n");
-    // return 0;
+static struct class *cls;
 
-static int __init onewire_init(void) {
-
-//     dev_t dev;
-//     int alloc_ret =-1;
-//     int cdev_ret =-1;
-//     int num_of_dev = 1;
-//     alloc_ret = alloc_chrdev_region(&dev, 0, num_of_dev, "onewire");
-
-//     if(alloc_ret)
-//         goto error;
-//     int test_ioctl_major = MAJOR(dev);
-//     cdev_init(&test_ioctl_cdev, &fops);
-//     cdev_ret = cdev_add(&test_ioctl_cdev, dev, num_of_dev);
-
-//     if(cdev_ret)
-//         goto error;
-
-//     pr_alert("%s driver(major: %d) installed.\n", "onewire", test_ioctl_major);
-//     return 0;
-
-// error:
-//     if(cdev_ret == 0)
-//         cdev_del(&test_ioctl_cdev);
-//     if(alloc_ret == 0)
-//         unregister_chrdev_region(dev, num_of_dev);
-    
-//     return -1;
-    major = register_chrdev(0, DEVICE_NAME, &fops);
-
-    if(major < 0) {
-        pr_alert("Registering char device failed with %d\n", major);
-        return major;
-    }
-
-    pr_info("I was assigned major number %d.\n", major);
-
-    dev_class= class_create(DEVICE_NAME);
-
-    device_create(dev_class, NULL, MKDEV(major, 0), NULL, DEVICE_NAME);
-
-    pr_info("Device created on /dev/%s\n", DEVICE_NAME);
+// Define file operation functions
+static int
+onewire_open (struct inode *inode, struct file *filp)
+{
+    struct onewire_dev *dev;
+    dev = container_of (inode->i_cdev, struct onewire_dev, cdev);
+    filp->private_data = dev; // Store device-specific data in file pointer
+    printk (KERN_INFO "%s: Device opened\n", MODULE_NAME);
 
     return 0;
 }
 
-static void __exit onewire_exit(void) {
-    device_destroy(dev_class, dev);
-    class_destroy(dev_class);
-    unregister_chrdev_region(dev, 1);
-    printk(KERN_INFO "My Device Character Driver Unloaded\n");
+static int
+onewire_release (struct inode *inode, struct file *filp)
+{
+    printk (KERN_INFO "%s: Device released\n", MODULE_NAME);
+    return 0;
 }
 
-module_init(onewire_init);
-module_exit(onewire_exit);
+static ssize_t
+onewire_read (struct file *filp, char __user *buf, size_t count, loff_t *f_pos)
+{
+    // struct onewire_dev *dev = (struct onewire_dev *)filp->private_data;
+    ssize_t bytes_read = 0;
 
-MODULE_LICENSE("GPL");
+    if (count > s_dev->buffer_size - *f_pos)
+        {
+            count = s_dev->buffer_size - *f_pos;
+        }
+
+    if (copy_to_user (buf, s_dev->kernel_buffer + *f_pos, count))
+        {
+            return -EFAULT; // Failed to copy to user space
+        }
+
+    *f_pos += count;
+    bytes_read = count;
+    printk (KERN_INFO "%s: Read %zu bytes from device (offset: %lld)\n",
+            MODULE_NAME, count, *f_pos);
+    return bytes_read;
+}
+
+static ssize_t
+onewire_write (struct file *filp, const char __user *buf, size_t count,
+               loff_t *f_pos)
+{
+    // struct onewire_dev *dev = (struct onewire_dev *)filp->private_data;
+    ssize_t bytes_written = 0;
+
+    pr_info ("copy count %u f_pos %llu \n", count, *f_pos);
+    pr_info ("dev->buffer_size %lu \n", s_dev->buffer_size);
+
+    if (count > s_dev->buffer_size - *f_pos)
+        {
+            count = s_dev->buffer_size - *f_pos;
+        }
+
+    if (copy_from_user (s_dev->kernel_buffer + *f_pos, buf, count))
+        {
+            return -EFAULT; // Failed to copy from user space
+        }
+
+    pr_info ("copy_from user space scceeded\n");
+    *f_pos += count;
+    bytes_written = count;
+
+    pr_info ("copy_from user space scceeded\n");
+
+    if (count > 0)
+        {
+            pr_info ("value");
+            int value = s_dev->kernel_buffer[0] - '0';
+            pr_info ("value %i\n", value);
+            gpiod_set_value (onewire_pin, value);
+        }
+
+    printk (KERN_INFO "%s: Wrote %zu bytes to device (offset: %lld)\n",
+            MODULE_NAME, count, *f_pos);
+    return bytes_written;
+}
+
+// File operations structure
+static struct file_operations fops = {
+    .open = onewire_open,
+    .release = onewire_release,
+    .read = onewire_read,
+    .write = onewire_write,
+};
+
+static int
+onewire_probe (struct platform_device *pdev)
+{
+    pr_info ("onewire: onewire_probe");
+
+    struct device *dev = &pdev->dev;
+    const char *label;
+
+    //checking if the device haas the property label
+    if (!device_property_present (dev, "label"))
+        {
+            pr_crit ("Device property 'label' not found!\n");
+            return -1;
+        }
+
+    //checking if the device haas the property onewire-gpio
+    if (!device_property_present (dev, "onewire-gpio"))
+        {
+            pr_crit ("Device property 'onewire-gpio' not found!\n");
+            return -1;
+        }
+
+    //reading the device property lable in the device tree
+    int ret = device_property_read_string (dev, "label", &label);
+    if (ret)
+        {
+            pr_crit ("dt_gpio - Error! Could not read 'label'\n");
+            return -1;
+        }
+    pr_info ("dt_gpio - label: %s\n", label);
+
+    onewire_pin = gpiod_get (dev, "onewire", GPIOD_OUT_LOW);
+    if (IS_ERR (onewire_pin))
+        {
+            pr_crit ("gpiod_get error %i\n", onewire_pin);
+            return -1 * IS_ERR (onewire_pin);
+        }
+
+    // ret = gpiod_get_value(onewire_pin);
+
+    // initializing the character device
+    s_dev = kmalloc (sizeof (struct onewire_dev), GFP_KERNEL);
+    if (!s_dev)
+        {
+            ret = -ENOMEM;
+            printk (KERN_ERR "%s: Failed to allocate device structure\n",
+                    MODULE_NAME);
+            goto unregister_region;
+        }
+    memset (s_dev, 0, sizeof (struct onewire_dev));
+
+    // Allocate kernel buffer
+    s_dev->buffer_size = 512; // Use page size for buffer
+    s_dev->kernel_buffer = kmalloc (s_dev->buffer_size, GFP_KERNEL);
+    if (!s_dev->kernel_buffer)
+        {
+            ret = -ENOMEM;
+            printk (KERN_ERR "%s: Failed to allocate kernel buffer\n",
+                    MODULE_NAME);
+            goto free_device_struct;
+        }
+    memset (s_dev->kernel_buffer, 0, sizeof (s_dev->buffer_size));
+
+    // initializing character device
+    major_number = register_chrdev (0, MODULE_NAME, &fops);
+    if (major_number < 0)
+        {
+            pr_alert ("Registering char device failed with %d\n",
+                      major_number);
+            goto free_kernel_buffer;
+        }
+
+    // pr_info("I was assigned major number %d.\n", major_number);
+
+    cls = class_create (MODULE_NAME);
+
+    device_create (cls, NULL, MKDEV (major_number, 0), NULL, MODULE_NAME);
+
+    pr_info ("Device created on /dev/%s\n", MODULE_NAME);
+
+    return 0;
+
+free_kernel_buffer:
+    kfree (s_dev->kernel_buffer);
+free_device_struct:
+    kfree (s_dev);
+unregister_region:
+    unregister_chrdev_region (dev_num, 1);
+    return ret;
+}
+
+// 21
+static int
+onewire_remove (struct platform_device *pdev)
+{
+    pr_info ("onewire:  onewire_remove");
+
+    // destroy character device
+    device_destroy (cls, MKDEV (major_number, 0));
+    class_destroy (cls);
+
+    // unregister
+    unregister_chrdev (major_number, MODULE_NAME);
+
+    // free gpio pin
+    gpiod_put (onewire_pin);
+    pr_info ("good bye reader!\n");
+
+    return 0;
+}
+
+static const struct of_device_id my_of_match[]
+    = { { .compatible = "my-onewire" },
+        { /* sentinel */ } };
+MODULE_DEVICE_TABLE (of, my_of_match);
+
+struct platform_driver my_driver = {
+    .driver = {
+        .name = MODULE_NAME,
+        .of_match_table = my_of_match,
+    },
+    .probe = onewire_probe,
+    .remove = onewire_remove,
+};
+
+module_platform_driver (my_driver);
+
+MODULE_LICENSE ("GPL");
+// MODULE_LICENSE("Proprietary");
