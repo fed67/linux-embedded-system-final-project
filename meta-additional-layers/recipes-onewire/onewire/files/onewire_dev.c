@@ -10,6 +10,8 @@
 #include <linux/delay.h>
 #include <linux/of.h> /* For DT*/
 
+#include "constants.h"
+
 #define MAX_SIZE 128
 
 #define MODULE_NAME "onewire_dev"
@@ -28,6 +30,60 @@ static int major_number = 0;
 static dev_t dev_num;
 
 static struct class *cls;
+
+
+//Onewire functions
+
+static void reset_onewire(void) {
+
+    gpiod_direction_output(onewire_pin, GPIOD_OUT_HIGH_OPEN_DRAIN);
+    gpiod_set_value(onewire_pin, GPIOD_OUT_LOW);
+    usleep_range(tRSTL-5, tRSTL+5);
+    gpiod_set_value(onewire_pin, GPIOD_OUT_HIGH_OPEN_DRAIN);
+
+
+    gpiod_direction_input(onewire_pin);
+
+    pr_info("Reset started \n");
+
+    //Wait until device respons with low
+
+    int flag = 0;
+    for(int i = 0; i < (tPDH_max); ++i) {
+        fsleep(1);
+        if(gpiod_get_value(onewire_pin) == 0) {
+            flag = 1;
+            break;
+        }
+    }
+
+    if(flag) {
+        pr_info("reset from device detected \n");
+    } else {
+        pr_info("failed to receive reset ACK \n");
+    }
+}
+
+
+static void transfer_bits(char* array, size_t length) {
+
+
+    for(int i = 0; i < length; ++i) {
+        char bit = 1;
+        for(int k = 0; k < 8; k++) {
+
+            
+            char b = array[i] & k;
+            if(!b) {
+                gpiod_set_value(onewire_pin, b);
+            }
+            bit = bit << 1;
+
+        }
+    }
+
+}
+
 
 // Define file operation functions
 static int
@@ -79,7 +135,7 @@ onewire_write (struct file *filp, const char __user *buf, size_t count,
     ssize_t bytes_written = 0;
 
     pr_info ("copy count %u f_pos %llu \n", count, *f_pos);
-    pr_info ("dev->buffer_size %lu \n", s_dev->buffer_size);
+    pr_info ("dev->buffer_size %u \n", s_dev->buffer_size);
 
     if (count > s_dev->buffer_size - *f_pos)
         {
@@ -97,12 +153,43 @@ onewire_write (struct file *filp, const char __user *buf, size_t count,
 
     pr_info ("copy_from user space scceeded\n");
 
+    char bits[2] = { 0b00110011, 0b00001111};
+
     if (count > 0)
         {
+            switch(s_dev->kernel_buffer[0]) {
+
+                case 'r':
+                    reset_onewire();
+                break;
+                case 't':
+                    transfer_bits(bits, 2);
+                break;
+                case 'i':
+                    gpiod_direction_input(onewire_pin);
+                    break;
+                case '1':
+                case '0':
+                    // gpiod_direction_output(onewire_pin, GPIOD_OUT_HIGH_OPEN_DRAIN);
+                    int value = s_dev->kernel_buffer[0] - '0';
+                    pr_info ("value %i\n", value);
+                    gpiod_set_value (onewire_pin, value);
+                    break;
+                case 'L':
+                    // gpiod_direction_output(onewire_pin, GPIOD_OUT_HIGH_OPEN_DRAIN);
+                    pr_info ("GPIOD_OUT_LOW_OPEN_DRAIN\n");
+                    gpiod_set_value (onewire_pin, GPIOD_OUT_LOW_OPEN_DRAIN);
+                    break;
+                    break;
+                case 'H':
+                    // gpiod_direction_output(onewire_pin, GPIOD_OUT_HIGH_OPEN_DRAIN);
+                    pr_info ("GPIOD_OUT_HIGH_OPEN_DRAIN\n");
+                    gpiod_set_value (onewire_pin, GPIOD_OUT_HIGH_OPEN_DRAIN);
+                    break;
+                default:
+            }
+
             pr_info ("value");
-            int value = s_dev->kernel_buffer[0] - '0';
-            pr_info ("value %i\n", value);
-            gpiod_set_value (onewire_pin, value);
         }
 
     printk (KERN_INFO "%s: Wrote %zu bytes to device (offset: %lld)\n",
@@ -129,7 +216,7 @@ onewire_probe (struct platform_device *pdev)
     //checking if the device haas the property label
     if (!device_property_present (dev, "label"))
         {
-            pr_crit ("Device property 'label' not found!\n");
+            pr_err ("Device property 'label' not found!\n");
             return -1;
         }
 
@@ -144,15 +231,15 @@ onewire_probe (struct platform_device *pdev)
     int ret = device_property_read_string (dev, "label", &label);
     if (ret)
         {
-            pr_crit ("dt_gpio - Error! Could not read 'label'\n");
+            pr_err ("dt_gpio - Error! Could not read 'label'\n");
             return -1;
         }
     pr_info ("dt_gpio - label: %s\n", label);
 
-    onewire_pin = gpiod_get (dev, "onewire", GPIOD_OUT_LOW);
+    onewire_pin = gpiod_get (dev, "onewire", GPIOD_OUT_HIGH_OPEN_DRAIN);
     if (IS_ERR (onewire_pin))
         {
-            pr_crit ("gpiod_get error %i\n", onewire_pin);
+            pr_err ("gpiod_get error %d\n", IS_ERR (onewire_pin));
             return -1 * IS_ERR (onewire_pin);
         }
 

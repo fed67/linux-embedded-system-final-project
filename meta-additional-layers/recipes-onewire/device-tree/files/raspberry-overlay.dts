@@ -11,6 +11,6 @@
 		status = "okay";
 		label = "Test";
 		my_value = <12>;
-		onewire-gpio = <&gpio 17 0>; 
+		onewire-gpio = <&gpio 17 (GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN) >; 
 	};
 };
