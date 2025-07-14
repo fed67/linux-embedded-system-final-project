@@ -308,7 +308,7 @@ onewire_write (struct file *filp, const char __user *buf, size_t count, loff_t *
         {
             reset (onewire_pin, onewire_pin_in);
         }
-        else if (string_cmp (s_dev->kernel_buffer, "ReadROM", 7))
+        else if (string_cmp (s_dev->kernel_buffer, "ReadAddress", 11))
         {
             reset (onewire_pin, onewire_pin_in);
             int ret = wait_until_rising_edge (onewire_pin_in);
