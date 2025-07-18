@@ -2,6 +2,7 @@
 #include <fstream>
 #include <string>
 #include <fstream>
+#include <sstream>
 
 #include <unistd.h>
 #include <csignal>
@@ -17,6 +18,7 @@
 
 #include "constants.h"
 #include "logger.h"
+#include <vector>
 
 
 #define BUFFER_SIZE 256
@@ -77,15 +79,32 @@ void create_server() {
 
 }
 
-void write_commands(std::string command, std::string& result, std::string device_name) {
+void write_commands(const std::vector<char>& command, std::vector<char>& result, std::string device_name) {
     std::fstream fs(device_name);
 
-    fs >> command;
+
 
     if( !fs.is_open()) {
         throw std::runtime_error("Error: onewire_driver is not open");
     }
 
+    for(char c : command) {
+        fs << c;
+    }
+    fs.flush();
+    fs.close();
+
+    sleep(1);
+
+    fs = std::fstream{device_name};
+
+    char c;
+    while(fs.good()) {
+        fs >>  c;
+        std::cout << c << " "; 
+    }
+    std::cout << "\n";
+    fs.close();
 }
 
 void demonize() {
@@ -123,14 +142,54 @@ void demonize() {
     close(STDERR_FILENO);
 }
 
-int main() {
+int main(int argc, char* argv[]) {
     std::cout << "Simple demon!" << std::endl;
 
     signal(SIGTERM, handle_signal);
     signal(SIGINT, handle_signal);
 
 
-    demonize();
+    if(argc > 1) {
+        if( std::string(argv[1]).compare("-d") == 0 ){ 
+            demonize();
+            return 0;
+        }
+    } 
+
+
+    std::string argument = "";
+    std::stringstream ss;
+    std::vector<char> char_arr;
+
+    for(int i = 1; i < argc; i++) {
+        std::string s{argv[i]};
+
+        if(i == 1) {
+            char_arr.push_back(s[0]);
+            if(s.size() > 1) 
+                char_arr.push_back(s[1]);
+        }
+
+        if(s[0] == '0' and s[1] == 'x') {
+
+            if(s.length() > 4 and s.length() == 2 ) {
+                throw std::runtime_error("Error input must be hex");
+            }
+            std::string s2(s.begin()+2, s.end());
+            ss << std::hex << s2;
+            std::cout << "s " << s << " s2 " << s2 << "\n";
+
+            const long l = strtol(s.c_str()+2, NULL, 16);
+            char_arr.push_back( (char) l);
+            ss << std::hex << l;
+
+        } else {
+ 
+        }
+
+    }
+
+    std::cout << "ss " << ss.str()  << "\n";
 
     return 0;
 }
