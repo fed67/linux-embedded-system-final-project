@@ -1,4 +1,3 @@
-#include <ctime>
 
 #include "logger.h"
 
@@ -18,11 +17,3 @@ Logger::~Logger() {
     }
 }
 
-void Logger::log(std::string msg) {
-    std::time_t result = std::time(nullptr);
-    if(this->fs.is_open()) {
-        this->fs << "Log[" << std::asctime(std::localtime(&result)) << "]: " << msg << "\n";
-    } else {
-        throw std::runtime_error("Logger Error log file is not open");
-    }
-}
