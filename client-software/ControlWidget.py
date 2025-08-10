@@ -1,8 +1,8 @@
 from PySide6.QtWidgets import QApplication, QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QLineEdit, QMessageBox, QGridLayout
 from PySide6.QtGui import QFont, QIcon
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal, Slot
 
-from .net.OnewireClient import OnewireClient
+from net.OnewireClient import OnewireClient
 
 class ControlWidget(QWidget):
     
@@ -45,25 +45,39 @@ class ControlWidget(QWidget):
 
         self.buttons = ActionWidget(parent=self)
         self.layout.addWidget(self.buttons, 2, 1)
+        self.buttons.signal_read_id[int].connect(self.read_id)
+        self.buttons.signal_read_temperature[int].connect(self.read_temperature)
 
 
     def button_connect_signal(self):
         print("button clicked")
         self.client_network = OnewireClient(self.line.text(), self.line2.text())
 
+    @Slot(int)
     def read_id(self):
-        self.client_network.read_id()
+        if self.client_network is not None:
+            self.client_network.read_id()
+        else:
+            messageBox = QMessageBox()
+            messageBox.critical(None, "Network Error", "Not connected to client")
 
+    @Slot(int)
     def read_temperature(self):
-        self.client_network.read_temperature()
+        if self.client_network is not None:
+            self.client_network.read_temperature()
+        else:
+            messageBox = QMessageBox()
+            messageBox.critical(None, "Network Error", "Not connected to client")
+
+
 
 class ActionWidget(QWidget):
     """
         Action Widget
     """
 
-    read_id = Signal(int)
-    read_temperature = Signal(int)
+    signal_read_id = Signal((int,))
+    signal_read_temperature = Signal((int,))
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -77,7 +91,7 @@ class ActionWidget(QWidget):
         self.net_client = None
 
         self.layout = QHBoxLayout()
-        self.widget.setLayout(self.layout)
+        self.setLayout(self.layout)
 
         self.read_id = QPushButton("Read ID")
         self.read_id.clicked.connect(self.connect_read_id)
@@ -88,7 +102,7 @@ class ActionWidget(QWidget):
         self.layout.addWidget(self.read_temp)
 
     def connect_read_temp(self):
-        self.read_temperature.emit(0)
+        self.signal_read_temperature[int].emit(0)
 
     def connect_read_id(self):
-        self.read_id.emit(0)
+        self.signal_read_id[int].emit(0)
