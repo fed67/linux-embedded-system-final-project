@@ -33,5 +33,10 @@ class DebugWindow(QWidget):
         self.label2.setFont(current_font)
 
         self.textedit = QTextEdit()
+        self.textedit.setReadOnly(True)
+        self.textedit.setPlaceholderText("<Debug Log>")
         self.layout.addWidget(self.textedit)
 
+    def append_messafe(s : str ):
+        text += s + "\n"
+        self.textedit.setPlainText(self.text)
