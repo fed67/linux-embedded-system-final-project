@@ -15,6 +15,9 @@ class Window(QMainWindow):
         super().__init__()
         self.init_ui()
 
+        self.client = None
+
+
     def init_ui(self):
         """
             Initialize all elements
@@ -29,7 +32,7 @@ class Window(QMainWindow):
         layout = QVBoxLayout()
         self.widget.setLayout(layout)
 
-        element0 =  ControlWidget(self.connect_server)
+        element0 =  ControlWidget()
         layout.addWidget(element0)
 
         graph = Graph2D(data=[[1,2,3,4,5], [-1, -2, -4.4, 2, -6]])
@@ -37,21 +40,22 @@ class Window(QMainWindow):
 
         self.debugWindow = DebugWindow()
         self.debugWindow.show()
+        self.debugWindow.setVisible(False)
 
-        self.wid = QWidget()
-        self.wid.resize(250, 150)
-        self.wid.setWindowTitle('NewWindow')
-        self.wid.show()
 
         self.debug_button = QPushButton("Debug")
+        self.debug_button.clicked.connect(self.connect_debug_window)
         layout.addWidget(self.debug_button)
 
         
     def connect_server(self,tp):
         host, port = tp
-
         print(f"{host=} {port=}")
+        #self.client = OnewireClient(host, port)
+        #client.read_temp()
 
-        client = OnewireClient(host, port)
-        client.read_temp()
+    def connect_debug_window(self):
+        self.debugWindow.setVisible( not self.debugWindow.isVisible())
+
+
 

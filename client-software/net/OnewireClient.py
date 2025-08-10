@@ -8,7 +8,7 @@ class OnewireClient:
         self.c = NetworkWrapper(host, port)
 
     
-    def read_temp(self) -> bytes:
+    def read_id(self) -> bytes:
         self.c.send("RA")
 
         return self.c.receive()
