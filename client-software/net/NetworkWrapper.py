@@ -24,4 +24,5 @@ class NetworkWrapper:
 
         return data
 
-
+    def close(self):
+        self.client.close()

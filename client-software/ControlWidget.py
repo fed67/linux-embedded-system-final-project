@@ -1,17 +1,21 @@
 from PySide6.QtWidgets import QApplication, QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QLineEdit, QMessageBox, QGridLayout
-from PySide6.QtGui import QFont, QIcon
+from PySide6.QtGui import QFont, QIcon, QPalette
 from PySide6.QtCore import Qt, Signal, Slot
 
 from net.OnewireClient import OnewireClient
+from collections.abc import Callable
 
 class ControlWidget(QWidget):
     
+    signal_new_temperature = Signal((float,))
+    disconnect_color = Qt.yellow
 
-    def __init__(self, ):
-        super().__init__()
+
+    def __init__(self, log : Callable[[str], None] = None, parent=None):
+        super().__init__(parent)
         self.init()
         self.client_network = None
-
+        self.log = log
     
     def init(self):
 
@@ -22,6 +26,8 @@ class ControlWidget(QWidget):
         self.button0 = QPushButton("Connect")
         self.button0.clicked.connect(self.button_connect_signal)
 
+        self.button_close = QPushButton("Disconnect")
+        self.button_close.clicked.connect(self.button_close_signal)
 
         self.label1 = QLabel("Address")
         current_font = self.label1.font()
@@ -33,6 +39,7 @@ class ControlWidget(QWidget):
         self.layout.addWidget(self.button0, 0, 0)
         self.layout.addWidget(self.label1, 0, 1)
         self.layout.addWidget(self.line, 0, 2)
+        self.layout.addWidget(self.button_close, 1, 0)
 
         self.label2 = QLabel("Port")
         current_font = self.label2.font()
@@ -48,10 +55,27 @@ class ControlWidget(QWidget):
         self.buttons.signal_read_id[int].connect(self.read_id)
         self.buttons.signal_read_temperature[int].connect(self.read_temperature)
 
+        palette = self.palette()
+        palette.setColor(self.backgroundRole(), self.disconnect_color)
+        self.setAutoFillBackground(True)
+        self.setPalette(palette)
+
+    def button_close_signal(self):
+        self.client_network = None
+
+        palette = self.palette()
+        palette.setColor(self.backgroundRole(), self.disconnect_color)
+        self.setPalette(palette)
+
 
     def button_connect_signal(self):
         print("button clicked")
-        self.client_network = OnewireClient(self.line.text(), self.line2.text())
+        self.client_network = OnewireClient(self.line.text(), self.line2.text(), self.log)
+
+        palette = self.palette()
+        palette.setColor(self.backgroundRole(), Qt.green)
+        self.setPalette(palette)
+
 
     @Slot(int)
     def read_id(self):
@@ -64,7 +88,8 @@ class ControlWidget(QWidget):
     @Slot(int)
     def read_temperature(self):
         if self.client_network is not None:
-            self.client_network.read_temperature()
+            value = self.client_network.read_temperature()
+            self.signal_new_temperature[float].emit(value)
         else:
             messageBox = QMessageBox()
             messageBox.critical(None, "Network Error", "Not connected to client")

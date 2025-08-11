@@ -37,6 +37,6 @@ class DebugWindow(QWidget):
         self.textedit.setPlaceholderText("<Debug Log>")
         self.layout.addWidget(self.textedit)
 
-    def append_messafe(s : str ):
-        text += s + "\n"
+    def append_message(self, s : str ):
+        self.text += s + "\n"
         self.textedit.setPlainText(self.text)

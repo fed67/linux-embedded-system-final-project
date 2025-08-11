@@ -2,7 +2,7 @@ from PySide6.QtWidgets import QWidget
 from PySide6.QtCore import QDateTime, Qt
 from PySide6.QtGui import QPainter
 from PySide6.QtWidgets import QVBoxLayout, QSizePolicy, QLabel
-from PySide6.QtCharts import QChart, QChartView, QLineSeries, QValueAxis
+from PySide6.QtCharts import QChart, QChartView, QLineSeries, QValueAxis, QDateTimeAxis
 
 
 class Graph2D(QWidget):
@@ -24,9 +24,12 @@ class Graph2D(QWidget):
         self.main_layout = QVBoxLayout()
         size = QSizePolicy()
         size.setHorizontalPolicy(QSizePolicy.Policy.Maximum)
-        
 
-        label = QLabel("Graph2d")
+        label = QLabel("Temperature Plot")
+        current_font = label.font()
+        current_font.setBold(True)
+        label.setFont(current_font)
+
         self.main_layout.addWidget(label)
 
 
@@ -37,15 +40,6 @@ class Graph2D(QWidget):
 
         self.setData(data)
 
-    def appendData(self, data, qdata : QLineSeries):
-        paired_list = zip(data[0], data[1])
-        for el in paired_list:
-            x, y = el
-            self.qdata.append(x, y)
-
-        self.chart.addSeries(self.qdata)
-
-
     def setData(self, data : list):
 
         self.qdata = QLineSeries()
@@ -54,15 +48,15 @@ class Graph2D(QWidget):
         paired_list = zip(data[0], data[1])
         for el in paired_list:
             x, y = el
-            self.qdata.append(x, y)
+            self.qdata.append(x.toMSecsSinceEpoch(), y)
 
         #before the axis is initalized
         self.chart.addSeries(self.qdata)
 
         #x axis
-        self.axis_x = QValueAxis()
-        self.axis_x.setTitleText("X Data")
-        self.axis_x.setLabelFormat("%.2f")
+        self.axis_x = QDateTimeAxis()
+        self.axis_x.setTitleText("Timestamp")
+        self.axis_x.setFormat("hh:mm:ss")
         self.chart.addAxis(self.axis_x, Qt.AlignBottom)
         self.qdata.attachAxis(self.axis_x)
         # y axis
@@ -72,14 +66,16 @@ class Graph2D(QWidget):
         self.chart.addAxis(self.axis_y, Qt.AlignLeft)
         self.qdata.attachAxis(self.axis_y)
 
+    def data_update(self, data):
 
-    def data_update(data):
-        self.qdata.clear()
-
+        self.chart.removeSeries(self.qdata)
         paired_list = zip(data[0], data[1])
         for el in paired_list:
             x, y = el
-            self.qdata.append(x, y)
+            print(f"{x=}, {y=}")
+            self.qdata.append(x.toMSecsSinceEpoch(), y)
 
+        self.chart.addSeries(self.qdata)
 
+        self.chart_view.update()
 
