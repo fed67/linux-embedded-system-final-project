@@ -241,40 +241,53 @@ onewire_read (struct file *filp, char __user *buf, size_t count, loff_t *f_pos)
         count = s_dev->buffer_size - *f_pos;
     }
     printk ("READ \n");
+    printk("f_pos %lu count %lu \n", f_pos, count); 
     struct read_data_t *result;
 
     printk ("size %i \n", kfifo_size (&result_fifo));
 
     printk ("use kfifo_put \n");
-    int ret = kfifo_get (&result_fifo, &result);
-    if (ret == 0)
+    int processed_elements = kfifo_get (&result_fifo, &result);
+    printk ("ptr_adr %p processed_elements %i \n", result, processed_elements);
+    if (processed_elements == 0)
     { // if fifo is empty stop reading
         return 0;
     }
-    printk ("ptr_adr %p ret %i \n", result, ret);
-    printk ("result size %u \n", result->size);
+
+    printk ("result size %lu \n", result->size);
 
     // int ret = 	kfifo_get(&result_fifo, result);
     // printk("ptr_adr %p ret %i \n", result, ret);
 
     // printk("fifo ret %i size %lu \n", ret, result->size);
-    if (kfifo_size (&result_fifo))
-    {
+    //if (kfifo_size (&result_fifo))
+    //{
 
-        // kfifo_get(&result_fifo, &data);
+        //int processed_elements = kfifo_get(&result_fifo, &result);
 
-        if (copy_to_user (buf, s_dev->kernel_buffer + *f_pos, count))
+	for(size_t i = 0; i < result->size; i++) {
+		printk("c %x ", result->data[i]);
+		s_dev->kernel_buffer[i] = result->data[i];
+	}
+
+
+	size_t min_count = s_dev->buffer_size;
+	if(  result->size < min_count )
+		min_count = result->size;
+
+	printk("result size %lu min_count %u \n", result->size, min_count);
+        if (copy_to_user (buf, s_dev->kernel_buffer, min_count))
         {
             return -EFAULT; // Failed to copy to user space
         }
-    }
+    /*}
     else
     {
         if (copy_to_user (buf, s_dev->kernel_buffer + *f_pos, count))
         {
             return -EFAULT; // Failed to copy to user space
         }
-    }
+    } */
 
     kfree (result);
 
