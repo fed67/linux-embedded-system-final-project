@@ -119,13 +119,15 @@ void create_server() {
 }
 
 void communicate() {
-    logger::Logger log("/tmp", LOG_FILE);
 
     socklen_t client_addr_len = sizeof(server_addr);
 
-    log.log("Waitinf for incomming TCP connections");
     // Accept incoming connection
     new_socket = accept(server_fd, (struct sockaddr*)&client_addr, &client_addr_len);
+
+    logger::Logger log("/tmp", LOG_FILE);
+    log.log("Accepted incomming TCP connection");
+
 
     if (new_socket < 0) {
         perror("accept");
@@ -186,9 +188,9 @@ void demonize() {
 
     create_server();
 
-    close(STDIN_FILENO);
-    close(STDOUT_FILENO);
-    close(STDERR_FILENO);
+    //close(STDIN_FILENO);
+    //close(STDOUT_FILENO);
+    //close(STDERR_FILENO);
 
     while(1) {
         communicate();
