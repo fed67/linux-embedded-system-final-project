@@ -4,7 +4,6 @@
 #include <fstream>
 #include <ctime>
 #include <cstdint>
-#include <format>
 
 
 namespace logger {
@@ -23,24 +22,28 @@ namespace logger {
         void log(std::string msg) {
             std::time_t result = std::time(nullptr);
             if(this->fs.is_open()) {
-                std::string time{std::asctime(std::localtime(&result))};
-                time.pop_back();
-                this->fs << "Log[" << time << "]: " << msg << "\n";
+                this->fs << "Log[" << std::asctime(std::localtime(&result)) << "]: " << msg << "\n";
             } else {
                 throw std::runtime_error("Logger Error log file is not open");
             }
         }
 
-        template<typename... T>
-        void log(std::string msg, T... t) {
-            size_t p = msg.find(std::string("{}"));
-            if(p == std::string::npos) {
-                throw std::runtime_error("Error in logging: missing {} in msg argument\n");
+
+
+        template<typename T0, typename... T>
+        void log(std::string msg, T0 t0, T... t) {
+            uint32_t pos = -1;
+            for(uint32_t i = 0; i < msg.size()-1; i++) {
+                if(msg[i] == '{' && msg[i+1] == '}' ) {
+                    pos = i;
+                    break;
+                }
             }
-            
-            std::string s = std::vformat(msg, std::make_format_args(t...));
-            log(s);
-        }    
+            if(pos > -1) {
+                msg.replace(pos, 2, std::to_string(t0));
+            }
+            log(msg, t...);
+        }
 
     };
 
