@@ -372,7 +372,7 @@ onewire_write (struct file *filp, const char __user *buf, size_t count, loff_t *
         }
         else if (string_cmp (s_dev->kernel_buffer, "RS", 2)) // Read Scrathpad
         {
-	    printk("Read scratchpad \n");
+	        printk("Read scratchpad \n");
             reset (onewire_pin, onewire_pin_in);
 
 
@@ -402,7 +402,7 @@ onewire_write (struct file *filp, const char __user *buf, size_t count, loff_t *
 
 
             char data[2];
-	    data[0] = 0xCC;
+	        data[0] = 0xCC;
             data[1] = 0x44;
             write_cmd (onewire_pin, data, 2);
 
@@ -541,7 +541,7 @@ unregister_region:
     return ret;
 }
 
-static void
+static int
 onewire_remove (struct platform_device *pdev)
 {
     pr_info ("onewire:  onewire_remove");
@@ -565,7 +565,7 @@ onewire_remove (struct platform_device *pdev)
     gpiod_put (onewire_pin);
     pr_info ("good bye reader!\n");
 
-    //return 0;
+    return 0;
 }
 
 static const struct of_device_id my_of_match[]

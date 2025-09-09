@@ -26,7 +26,7 @@ ${datadir}/dts-overlay-src/raspberry-overlay.dts \
 "
 
 do_deploy() {
-    install -m 0664 ${B}/raspberry-overlay.dtbo ${DEPLOYDIR}/my-gpio-led.dtbo
+    install -m 0664 ${B}/raspberry-overlay.dtbo ${DEPLOYDIR}/raspberry-overlay.dtbo
 }
 
 addtask deploy after do_compile
