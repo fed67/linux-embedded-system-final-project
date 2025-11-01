@@ -219,17 +219,24 @@ int main(int argc, char* argv[]) {
             std::cout << "demonize " << std::endl;
             std::string s = write_commands({'C', 'T'}, DRIVER_PATH);
             std::cout << "Got " << s << '\n';
-            s = write_commands({'R', 'S'}, DRIVER_PATH);
+            // s = write_commands({'R', 'S'}, DRIVER_PATH);
+            // std::cout << "Got " << s << '\n';
+            // std::cout << "hex ";
+            // for(size_t i = 0; i < s.size(); ++i) {
+            //     std::cout << std::hex << (int) s[i] << " ";
+            // }
+            // std::cout << " end\n";
+
+            // return 0;
+        } else if ( std::string(argv[1]).compare("-r") == 0 ){  //measure temperature
+            std::string s = write_commands({'R', 'S'}, DRIVER_PATH);
             std::cout << "Got " << s << '\n';
             std::cout << "hex ";
             for(size_t i = 0; i < s.size(); ++i) {
                 std::cout << std::hex << (int) s[i] << " ";
             }
             std::cout << " end\n";
-
-            return 0;
         }
-
 
 
         std::string argument = "";
