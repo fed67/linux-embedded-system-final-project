@@ -1,22 +1,24 @@
-from PySide6.QtWidgets import QApplication, QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QLineEdit, QMessageBox, QGridLayout
+from PySide6.QtWidgets import QApplication, QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QLineEdit, QMessageBox, QGridLayout, QCheckBox
 from PySide6.QtGui import QFont, QIcon, QPalette
 from PySide6.QtCore import Qt, Signal, Slot
 
 from net.OnewireClient import OnewireClient
 from collections.abc import Callable
 
+from MyTimer import *
+
+
 class ControlWidget(QWidget):
-    
-    signal_new_temperature = Signal((float,))
+
+    signal_new_temperature = Signal((float, ))
     disconnect_color = Qt.yellow
 
-
-    def __init__(self, log : Callable[[str], None] = None, parent=None):
+    def __init__(self, log: Callable[[str], None] = None, parent=None):
         super().__init__(parent)
         self.init()
         self.client_network = None
         self.log = log
-    
+
     def init(self):
 
         self.layout = QGridLayout()
@@ -35,7 +37,7 @@ class ControlWidget(QWidget):
         self.label1.setFont(current_font)
 
         self.line = QLineEdit()
-        self.line.setText("0.0.0.0")
+        self.line.setText("192.168.178.24")
         self.layout.addWidget(self.button0, 0, 0)
         self.layout.addWidget(self.label1, 0, 1)
         self.layout.addWidget(self.line, 0, 2)
@@ -47,13 +49,17 @@ class ControlWidget(QWidget):
         self.label2.setFont(current_font)
 
         self.line2 = QLineEdit()
+        self.line2.setText("1033")
+
         self.layout.addWidget(self.label2, 1, 1)
         self.layout.addWidget(self.line2, 1, 2)
 
         self.buttons = ActionWidget(parent=self)
         self.layout.addWidget(self.buttons, 2, 1)
         self.buttons.signal_read_id[int].connect(self.read_id)
-        self.buttons.signal_read_temperature[int].connect(self.read_temperature)
+        self.buttons.signal_read_temperature[int].connect(
+            self.read_temperature)
+        self.buttons.signal_set_enable_crc[int].connect(self.set_enable_crc)
 
         palette = self.palette()
         palette.setColor(self.backgroundRole(), self.disconnect_color)
@@ -67,15 +73,14 @@ class ControlWidget(QWidget):
         palette.setColor(self.backgroundRole(), self.disconnect_color)
         self.setPalette(palette)
 
-
     def button_connect_signal(self):
         print("button clicked")
-        self.client_network = OnewireClient(self.line.text(), self.line2.text(), self.log)
+        self.client_network = OnewireClient(self.line.text(),
+                                            self.line2.text(), self.log)
 
         palette = self.palette()
         palette.setColor(self.backgroundRole(), Qt.green)
         self.setPalette(palette)
-
 
     @Slot(int)
     def read_id(self):
@@ -83,7 +88,8 @@ class ControlWidget(QWidget):
             self.client_network.read_id()
         else:
             messageBox = QMessageBox()
-            messageBox.critical(None, "Network Error", "Not connected to client")
+            messageBox.critical(None, "Network Error",
+                                "Not connected to client")
 
     @Slot(int)
     def read_temperature(self):
@@ -92,17 +98,29 @@ class ControlWidget(QWidget):
             self.signal_new_temperature[float].emit(value)
         else:
             messageBox = QMessageBox()
-            messageBox.critical(None, "Network Error", "Not connected to client")
+            messageBox.critical(None, "Network Error",
+                                "Not connected to client")
 
+    @Slot(int)
+    def set_enable_crc(self, val):
+        if self.client_network is not None:
+            self.client_network.set_enable_crc(val)
+        else:
+            messageBox = QMessageBox()
+            messageBox.critical(None, "Network Error",
+                                "Not connected to client")
 
 
 class ActionWidget(QWidget):
     """
         Action Widget
+        Manages the button clicks and the checkboxes
+        Send the 1-Wire commands to the raspberry (triggers the sending)
     """
 
-    signal_read_id = Signal((int,))
-    signal_read_temperature = Signal((int,))
+    signal_read_id = Signal((int, ))
+    signal_read_temperature = Signal((int, ))
+    signal_set_enable_crc = Signal((int, ))
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -114,6 +132,7 @@ class ActionWidget(QWidget):
         """
 
         self.net_client = None
+        self.timer = MyTimer(10, self.connect_read_temp)
 
         self.layout = QHBoxLayout()
         self.setLayout(self.layout)
@@ -126,8 +145,28 @@ class ActionWidget(QWidget):
         self.read_temp.clicked.connect(self.connect_read_temp)
         self.layout.addWidget(self.read_temp)
 
+        self.checkbox = QCheckBox("Read Temperature")
+        self.checkbox.setChecked(False)
+        self.checkbox.stateChanged.connect(self.on_checkbox_toggled)
+        self.layout.addWidget(self.checkbox)
+
+        self.crc_checkbox = QCheckBox("Enable CRC Check")
+        self.crc_checkbox.setChecked(False)
+        self.crc_checkbox.stateChanged.connect(self.on_crc_checkbox_toggled)
+
+        self.layout.addWidget(self.crc_checkbox)
+
     def connect_read_temp(self):
         self.signal_read_temperature[int].emit(0)
 
     def connect_read_id(self):
         self.signal_read_id[int].emit(0)
+
+    def on_checkbox_toggled(self):
+        if self.checkbox.isChecked():
+            self.timer.start()
+        else:
+            self.timer.stop()
+
+    def on_crc_checkbox_toggled(self):
+        self.signal_set_enable_crc[int].emit(self.checkbox.isChecked())

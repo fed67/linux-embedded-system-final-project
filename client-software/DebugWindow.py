@@ -1,8 +1,9 @@
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QLabel
 
+
 class DebugWindow(QWidget):
     """
-        Debug Window
+        Debug Window to show Log messages
     """
 
     text = ""
@@ -12,10 +13,9 @@ class DebugWindow(QWidget):
 
         self.init_ui()
 
-
     def init_ui(self):
         """
-            Initialize the Window
+            Initialize the Debug Window
         """
         self.setWindowTitle('Debug Window')
         self.resize(250, 150)
@@ -37,6 +37,7 @@ class DebugWindow(QWidget):
         self.textedit.setPlaceholderText("<Debug Log>")
         self.layout.addWidget(self.textedit)
 
-    def append_message(self, s : str ):
+    def append_message(self, s: str):
+        """Add a new log message and append it to the bottom"""
         self.text += s + "\n"
         self.textedit.setPlainText(self.text)

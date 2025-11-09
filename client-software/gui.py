@@ -24,7 +24,7 @@ class Window(QMainWindow):
         """
             Initialize all elements
         """
-        self.setWindowTitle('PySide66')
+        self.setWindowTitle('Onewire GUI')
         self.setGeometry(100, 100, 1000, 700)
 
         self.widget = QWidget()
@@ -43,7 +43,7 @@ class Window(QMainWindow):
 
         now = QDateTime.currentDateTime()
 
-        self.graph = Graph2D(data=[[ now.addSecs(i) for i in range(0, 5) ], [-1, -2, -4.4, 2, -6]])
+        self.graph = Graph2D(data=[[ now.addSecs(i) for i in range(0, 3) ], [0, 1, 2]])
         layout.addWidget(self.graph)
 
         self.debug_button = QPushButton("Debug")

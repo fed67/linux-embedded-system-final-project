@@ -1,27 +1,54 @@
-
 from .NetworkWrapper import NetworkWrapper
+import time
+
 
 class OnewireClient:
     """Provides an api for the onewire demon
     """
-    def __init__(self, host, port, log = None):
+
+    def __init__(self, host, port, log=None):
         self.c = NetworkWrapper(host, port)
         self.log = log
 
     def close(self):
         self.c.close()
-    
+
     def read_id(self) -> bytes:
+        """Reads the Onewire ID."""
+
+        self.c.send("FLUSH")
+        data = self.c.receive()
+
         if self.log is not None:
             self.log("[OneWire]: sending RA")
         self.c.send("RA")
 
         return self.c.receive()
-    
+
+    def set_enable_crc(self, en: bool):
+        """Enables the CRC check in the driver."""
+        if en:
+            self.c.send("ECRC")
+        else:
+            self.c.send("DCRC")
+
+        self.c.receive()
+
     def read_temperature(self) -> float:
+        """Read the temperature and sets"""
         if self.log is not None:
-            self.log("[OneWire]: sending CP")
-        self.c.send("CP")
+            self.log("[OneWire]: sending CT")
+
+        self.c.send("FLUSH")
+        data = self.c.receive()
+        if self.log is not None:
+            self.log(f"[OneWire]: received flush {data}")
+
+        self.c.send("CT")
+
+        data = self.c.receive()
+        if self.log is not None:
+            self.log(f"[OneWire]: received CT {data}")
 
         if self.log is not None:
             self.log("[OneWire]: sending RS")
@@ -29,8 +56,10 @@ class OnewireClient:
 
         data = self.c.receive()
         if self.log is not None:
-            self.log(f"[OneWire]: received {data}")
+            self.log(f"[OneWire]: received RS {data}")
 
+        b0, b1 = data[0], data[1]
 
-        return float(data)
-    
+        concat = (b1 << 8) + b0
+
+        return float(concat) / 2.0**4
