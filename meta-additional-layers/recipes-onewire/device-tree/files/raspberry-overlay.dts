@@ -4,15 +4,40 @@
 /plugin/;
 
 
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/bcm2835.h>
+
+
+/*&gpio {
+	w1_pins: w1_pins {
+		brcm,pins = <18>;
+		brcm,function = <BCM2835_FSEL_GPIO_IN>;
+		brcm,pull = <BCM2835_PUD_UP>;
+	};
+}; */
+
+
 &{/} {
 
-    my-onewire {
+/*    my-onewire {
 		compatible = "my-onewire";
 		status = "okay";
 		label = "Test";
 		my_value = <12>;
-		onewire-gpio = <&gpio 18 0 >; 
+		onewire-gpios = <&gpio 18 0 >; 
 		onewirein-gpio = <&gpio 14 0 >;
+	}; */
+
+	my-onewire {
+		compatible = "my-onewire";
+		status = "okay";
+		label = "Test";
+		my_value = <12>;
+		/*onewire-gpios = <&gpio 18 4 >; */ 
+		onewire-gpios = <&gpio 18 16 >; 
+		onewirein-gpios = <&gpio 14 0 >;
 	};
+
+
 };
 
