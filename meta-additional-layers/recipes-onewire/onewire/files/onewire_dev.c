@@ -462,28 +462,18 @@ onewire_write (struct file *filp, const char __user *buf, size_t count, loff_t *
             data[1] = 0x44;
             write_cmd (onewire_pin, data, 2);
 
-            udelay (200);
+            // give data to the client so signal command has finished
+            struct read_data_t *result = kmalloc (sizeof (struct read_data_t), GFP_KERNEL);
+            result->size = 1;
+            result->data[0] = '-';
+            printk ("prt adr %p &adr %p \n", result, &result);
+            kfifo_put (&result_fifo, result);
         }
-        else if (string_cmp (s_dev->kernel_buffer, "CP", 2)) // copy temp
+        else  // Read current gpiod value
         {
-            reset (onewire_pin);
-
-
-            char data[2];
-	        data[0] = 0xCC;
-            data[1] = 0x48;
-            write_cmd (onewire_pin, data, 2);
-
-            udelay (200);
-        }  else  // Read Address
-        {
-	        printk("Read Address \n");
-            reset (onewire_pin);
-
-	
-            // char data[2] = { 0xCC, 0xBE };
-            char data[1] = { s_dev->kernel_buffer[0] };
-            write_cmd (onewire_pin, data, 1);
+	        int value = s_dev->kernel_buffer[0] - '0';
+            pr_info ("value %i\n", value);
+            gpiod_set_value (onewire_pin, value);
         }
     }
 

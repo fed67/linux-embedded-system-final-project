@@ -1,7 +1,8 @@
 SUMMARY = "Config Receipe"
 DESCRIPTION = "Config receipe. Set kayboard and onewire driver rw"
 LICENSE = "CLOSED"
-INHIBIT_DEFAULT_DEPS = "1" # c and c++ libs are not needed
+# c and c++ libs are not needed
+INHIBIT_DEFAULT_DEPS = "1"
 inherit allarch
 
 # Use systemd

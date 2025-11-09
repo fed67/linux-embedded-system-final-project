@@ -289,18 +289,13 @@ int main(int argc, char* argv[]) {
         std::cout << "Accept server \n";
         while (true) {
             communicate();
+
+            char client_ip[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, &(client_addr.sin_addr), client_ip, INET_ADDRSTRLEN);
+
+            int client_port = ntohs(client_addr.sin_port);
+
             std::cout << "connection accepted \n";
-
-            // pid_t p = fork();
-            // if(p<0){
-            //     perror("fork fail");
-            //     exit(1);
-            // }
-
-            // if (pid == 0) {
-            //     continue;
-            // }
-
 
             char bufa[256];
             const int buf_size = 256;
