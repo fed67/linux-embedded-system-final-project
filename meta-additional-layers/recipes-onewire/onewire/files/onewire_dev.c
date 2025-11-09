@@ -150,6 +150,7 @@ write_cmd (struct gpio_desc *rq, char *data, size_t length)
         }
         udelay (30);
     }
+    gpiod_direction_input(rq);
 
     return 0;
 }
@@ -199,9 +200,6 @@ read_cmd (struct gpio_desc *request, char *data, size_t length)
         printk("%x ", data[i]);
     }
     uint8_t crc = compute_crc(data, length-1);
-    printk("crc %x ", crc);
-    printk("data[length-1] %x ", data[length-1]);
-    printk("length %i ", length);
 
     uint8_t res = crc == data[length-1];
     return res;

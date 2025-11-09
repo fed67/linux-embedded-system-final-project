@@ -15,6 +15,7 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <memory>
+#include <arpa/inet.h>
 
 #include "constants.h"
 #include "logger.h"
