@@ -35,13 +35,17 @@ struct sockaddr_in server_addr, client_addr;
 
 
 void handle_signal(int sig) {
+    std::cout << "sig " << sig << "\n";
     if (sig == SIGTERM || sig == SIGINT) {
         stop = 1;
 
         // Close the socket
         close(new_socket);
         close(server_fd);
+
+        exit(0);
     }
+    
 }
 
 std::vector<char> convert_to_bvec(std::string in) {
@@ -283,48 +287,63 @@ int main(int argc, char* argv[]) {
         create_server(log);
 
         std::cout << "Accept server \n";
-        communicate();
+        while (true) {
+            communicate();
+            std::cout << "connection accepted \n";
+
+            // pid_t p = fork();
+            // if(p<0){
+            //     perror("fork fail");
+            //     exit(1);
+            // }
+
+            // if (pid == 0) {
+            //     continue;
+            // }
 
 
-        char bufa[256];
-        const int buf_size = 256;
-        //buf.reserve(buf_size);
+            char bufa[256];
+            const int buf_size = 256;
 
-        while(ssize_t bytes_read = read(new_socket, bufa, buf_size-1)) {
+            while(ssize_t bytes_read = read(new_socket, bufa, buf_size-1)) {
 
 
-            std::cout << "Reading... \n";
-            // ssize_t bytes_read = read(new_socket, bufa, buf_size-1);
-            if(bytes_read > 0) {
-                bufa[bytes_read] = '\0';
-            } else if( bytes_read == 0) {
-                std:: cout << "Closing connection" << "\n";
-            } else {
-                // throw std::runtime_error("Error reading buffer got " + std::to_string(bytes_read) );
+                std::cout << "Reading... \n";
+                // ssize_t bytes_read = read(new_socket, bufa, buf_size-1);
+                if(bytes_read > 0) {
+                    bufa[bytes_read] = '\0';
+                } else if( bytes_read == 0) {
+                    std:: cout << "Closing connection" << "\n";
+                    break;
+                } else {
+                    // throw std::runtime_error("Error reading buffer got " + std::to_string(bytes_read) );
+                }
+                std::string buf;
+
+                for(int i = 0; i < bytes_read; i++) {
+                    std::cout << bufa[i] << " ";
+                    buf.push_back(bufa[i]);
+                }
+                std::cout << "\n";
+                
+                
+                std::cout << "Got " << bytes_read << " " << buf << "\n";
+                std::vector<char> char_arr = convert_to_bvec(buf);
+                
+                
+                std::vector<char> result;
+                std::string s = write_commands(char_arr, result, "/dev/onewire_dev");
+                
+                std::cout << "send string " << s << "\n";
+                write(new_socket, s.c_str(), s.length());
+                //write(new_socket, bufa, bytes_read); 
             }
-            std::string buf;
-
-            for(int i = 0; i < bytes_read; i++) {
-                std::cout << bufa[i] << " ";
-                buf.push_back(bufa[i]);
-            }
-            std::cout << "\n";
-            
-            
-            std::cout << "Got " << bytes_read << " " << buf << "\n";
-            std::vector<char> char_arr = convert_to_bvec(buf);
-            
-            
-            std::vector<char> result;
-            std::string s = write_commands(char_arr, result, "/dev/onewire_dev");
-            
-            std::cout << "send string " << s << "\n";
-            write(new_socket, s.c_str(), s.length());
-            //write(new_socket, bufa, bytes_read); 
-        }      
-        sleep(1);
-        
-        close(new_socket);
+            sleep(1);
+            close(new_socket);
+            std::cout << "scket closed \n";
+        }
+        std::cout << "broke while \n";
+        sleep(1);        
         close(server_fd);
     } 
 

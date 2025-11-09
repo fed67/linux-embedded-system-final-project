@@ -6,10 +6,11 @@ SRC_URI = "file://onewire_dev.c \
            file://Makefile \
            "
 
+S = "${WORKDIR}"
  
 inherit module
 
-S = "${WORKDIR}"
-UNPACKDIR = "${S}"
+EXTRA_OEMAKE += 'KERNEL_SRC="${STAGING_KERNEL_BUILDDIR}"'
 
+RPROVIDES:${PN} += "onewire_dev"
 

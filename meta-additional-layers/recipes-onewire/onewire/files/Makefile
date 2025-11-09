@@ -10,7 +10,8 @@ obj-m += onewire_dev.o
 # 	$(MAKE) -C $(KERNEL_SRC) M=$(PWD) clean
 
 
-SRC := $(shell pwd)
+#SRC := $(shell pwd)
+SRC=$(PWD)
 
 all:
 	$(MAKE) -C $(KERNEL_SRC) M=$(SRC)

@@ -1,0 +1,11 @@
+[Unit]
+Description=My custom startup program
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/demon
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

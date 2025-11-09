@@ -24,7 +24,7 @@
 		status = "okay";
 		label = "Test";
 		my_value = <12>;
-		onewire-gpio = <&gpio 18 0 >; 
+		onewire-gpios = <&gpio 18 0 >; 
 		onewirein-gpio = <&gpio 14 0 >;
 	}; */
 
@@ -33,9 +33,9 @@
 		status = "okay";
 		label = "Test";
 		my_value = <12>;
-		/*onewire-gpio = <&gpio 18 4 >; */ 
-		onewire-gpio = <&gpio 18 16 >; 
-		onewirein-gpio = <&gpio 14 0 >;
+		/*onewire-gpios = <&gpio 18 4 >; */ 
+		onewire-gpios = <&gpio 18 16 >; 
+		onewirein-gpios = <&gpio 14 0 >;
 	};
 
 
