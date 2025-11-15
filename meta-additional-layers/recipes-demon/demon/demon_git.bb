@@ -1,9 +1,12 @@
 SUMMARY = "bitbake-layers recipe"
 DESCRIPTION = "Recipe created by bitbake-layers"
+SECTION = "raspberrypi-software"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://${COREBASE}/meta/files/common-licenses/MIT;md5=0835ade698e0bcf8506ecda2f7b4f302"
+PV = "1.1"
+
 CXX += "-std=c++20"
- 
+
 SRC_URI += "file://main.cpp \
             file://logger.cpp \
             file://logger.h \
@@ -12,14 +15,12 @@ SRC_URI += "file://main.cpp \
             file://tcp-server.service \
             "
 
-S = "${WORKDIR}"
+S = "${UNPACKDIR}"
 
 EXTRA_OEMAKE = "PREFIX=${prefix} CXX='${CXX}' CFLAGS='${CFLAGS}' DESTDIR=${D} LIBDIR=${libdir} INCLUDEDIR=${includedir} BUILD_STATIC=no"
 
-
 inherit systemd
 SYSTEMD_SERVICE:${PN} = "tcp-server.service"
-
 
 do_compile() {
     oe_runmake
