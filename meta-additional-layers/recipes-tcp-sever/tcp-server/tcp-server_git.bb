@@ -15,7 +15,7 @@ SRC_URI += "file://main.cpp \
             file://tcp-server.service \
             "
 
-S = "${UNPACKDIR}"
+S = "${WORKDIR}"
 
 EXTRA_OEMAKE = "PREFIX=${prefix} CXX='${CXX}' CFLAGS='${CFLAGS}' DESTDIR=${D} LIBDIR=${libdir} INCLUDEDIR=${includedir} BUILD_STATIC=no"
 
@@ -30,7 +30,7 @@ do_install() {
     #oe_runmake install DESTDIR=${D}
 
     install -d ${D}${bindir}
-    install -m 0755 ${WORKDIR}/demon ${D}${bindir}/demon
+    install -m 0755 ${WORKDIR}/tcp-server ${D}${bindir}/tcp-server
 
     install -d ${D}${systemd_system_unitdir}
     install -m 0644 ${WORKDIR}/tcp-server.service ${D}${systemd_system_unitdir}/
