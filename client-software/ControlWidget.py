@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton, QLineEdit, QMessageBox, QGridLayout
+from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton, QLineEdit, QMessageBox, QGridLayout, QCheckBox
 from PySide6.QtGui import QPalette
 from PySide6.QtCore import Qt, Signal, Slot
 
@@ -118,14 +118,10 @@ class ControlWidget(QWidget):
 
 class ActionWidget(QWidget):
     """
-<<<<<<< HEAD
         Action Widget
         Manages the button clicks and the checkboxes
         Send the 1-Wire commands to the raspberry (triggers the sending)
-=======
-        Action Widget to read from the sesor.
         Each button click is transfered to the outside using the signals 'signal_read_id' and 'signal_read_temperature'
->>>>>>> origin/dev2
     """
 
     signal_read_id = Signal((int, ))
