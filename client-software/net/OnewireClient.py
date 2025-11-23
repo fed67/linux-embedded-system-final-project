@@ -31,6 +31,5 @@ class OnewireClient:
         if self.log is not None:
             self.log(f"[OneWire]: received {data}")
 
-
         return float(data)
     
