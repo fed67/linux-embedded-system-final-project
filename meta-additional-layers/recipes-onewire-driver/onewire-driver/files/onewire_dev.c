@@ -65,7 +65,7 @@ string_cmp (const char *s1, const char *s2, size_t length)
     return 1;
 }
 
-
+// Lookup table for the 1-Wire CRC8
 static const uint8_t onewire_crc8_table[256] = {
     0x00, 0x5E,0xBC,0xE2,0x61,0x3F,0xDD,0x83,0xC2,0x9C,0x7E,0x20,0xA3,0xFD,0x1F,0x41,
     0x9D,0xC3,0x21,0x7F,0xFC,0xA2,0x40,0x1E,0x5F,0x01,0xE3,0xBD,0x3E,0x60,0x82,0xDC,
@@ -85,6 +85,9 @@ static const uint8_t onewire_crc8_table[256] = {
     0x74,0x2A,0xC8,0x96,0x15,0x4B,0xA9,0xF7,0xB6,0xE8,0x0A,0x54,0xD7,0x89,0x6B,0x35
 };
 
+/**
+ * compute the 1-Wire CRC via lookup table
+ */
 static uint8_t compute_crc(const uint8_t *data, size_t len)
 {
     uint8_t crc = 0x00;
@@ -95,66 +98,56 @@ static uint8_t compute_crc(const uint8_t *data, size_t len)
     return crc;
 }
 
-
-// Define onewire functions
+/**
+ * Write data to the 1-Wire lane
+ */
 static int
-wait_until_rising_edge (struct gpio_desc *request_in)
-{
-    int found = -1;
-    int value = 0;
-    for (int i = 0; i < 10000; i++)
-    {
-        value = gpiod_get_value (request_in);
-        if (value == 1)
-        {
-            found = i;
-            break;
-        }
-        ndelay (500);
-    }
-    return found;
-}
-
-static int
-write_cmd (struct gpio_desc *rq, char *data, size_t length)
+write_cmd (struct gpio_desc *request, char *data, size_t length)
 {
     printk ("Write CMD \n");
 
-    gpiod_direction_input(rq);
+    gpiod_direction_input(request);
+    // iterate over each byte
     for (int i = 0; i < length; i++)
     {
+        // iterate over each bit
         for (int j = 0; j < 8; j++)
         {
             unsigned long flags;
-            local_irq_save(flags);
+            local_irequest_save(flags);
 
             if (data[i] & bit_mask[j])
             {
-                printk ("Write 1 \n");
-                gpiod_direction_output(rq, 0);
+                // printk ("Write 1 \n");
+                gpiod_direction_output(request, 0);
                 udelay (7);
 
-                gpiod_direction_input(rq);
+                gpiod_direction_input(request);
                 local_irq_restore(flags);
                 udelay (60);
             }
             else
             {
-                printk ("Write 0 \n");
-                gpiod_direction_output(rq, 0);
+                // printk ("Write 0 \n");
+                gpiod_direction_output(request, 0);
                 udelay (60);
-                gpiod_direction_input(rq);
+                gpiod_direction_input(request);
                 local_irq_restore(flags);
                 udelay (15);
             }
         }
         udelay (30);
     }
-    gpiod_direction_input(rq);
+    gpiod_direction_input(request);
 
     return 0;
 }
 
+/**
+ * Read data from the 1-Wire lane,
+ * Reads exactly length*8 bits
+ * "data" format is little endian
+ */
 static uint8_t
 read_cmd (struct gpio_desc *request, char *data, size_t length)
 {
@@ -174,15 +167,14 @@ read_cmd (struct gpio_desc *request, char *data, size_t length)
             udelay(15);
             int rd = gpiod_get_value(request);
 
-            printk("rd %u ", rd);
             if (rd == 0)
             {
-                printk ("Read 0 \n");
+                // printk ("Read 0 \n");
                 read_bits = read_bits >> 1;
             }
             else
             {
-                printk ("Read 1 \n");
+                // printk ("Read 1 \n");
                 read_bits = (read_bits >> 1) | 0x80; // put a '1' at bit 7
             }
             
@@ -205,24 +197,28 @@ read_cmd (struct gpio_desc *request, char *data, size_t length)
     return res;
 }
 
+/**
+ * 1-Wire reset
+ * Pull down for 500 US
+ */
 static void
-reset (struct gpio_desc *request_out)
+reset (struct gpio_desc *request)
 {
     printk ("run reset \n");
 
-    gpiod_direction_output(request_out, 1);
-    gpiod_set_value (request_out, 0);
+    gpiod_direction_output(request, 1);
+    gpiod_set_value (request, 0);
 
     udelay(500);
 
-    gpiod_set_value (request_out, 1);
+    gpiod_set_value (request, 1);
 
-    gpiod_direction_input(request_out);
+    gpiod_direction_input(request);
 
-    int ret = wait_until_rising_edge (request_out);
-    printk ("ret wait %i \n", ret);
+    // int ret = wait_until_rising_edge (request);
+    // printk ("ret wait %i \n", ret);
 
-    udelay (500);
+    udelay (200);
 }
 
 // Define file operation functions
@@ -244,6 +240,9 @@ onewire_release (struct inode *inode, struct file *filp)
     return 0;
 }
 
+/**
+ * Reads an element from the KFIFO and returns its content to the user space
+ */
 static ssize_t
 onewire_read (struct file *filp, char __user *buf, size_t count, loff_t *f_pos)
 {
@@ -267,8 +266,6 @@ onewire_read (struct file *filp, char __user *buf, size_t count, loff_t *f_pos)
     { // if fifo is empty stop reading
         return 0;
     }
-
-    printk ("result size %u \n", result->size);
 
 	for(size_t i = 0; i < result->size; i++) {
 		printk("c %x ", result->data[i]);
