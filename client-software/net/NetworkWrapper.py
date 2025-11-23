@@ -1,7 +1,8 @@
 from socket import *
 
 class NetworkWrapper:
-    """Wrapper for the network client"""
+    """Wrapper for the TCP client
+       Simplified usage"""
 
     client_setup = False
     buffer_length = 1024
@@ -14,10 +15,8 @@ class NetworkWrapper:
         except Exception as e: 
             print(e)
         
-
     def send(self, message : str):
         self.client.sendall(message.encode("utf-8"))
-
 
     def receive(self) -> bytes:
         data = self.client.recv(self.buffer_length)
