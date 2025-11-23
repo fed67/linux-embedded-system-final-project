@@ -47,12 +47,8 @@ class Window(QMainWindow):
 
         # Graph
         now = QDateTime.currentDateTime()
-<<<<<<< HEAD
 
         self.graph = Graph2D(data=[[ now.addSecs(i) for i in range(0, 3) ], [0, 1, 2]])
-=======
-        self.graph = Graph2D(data=[[ now.addSecs(i) for i in range(0, 5) ], [-1, -2, -4.4, 2, -6]])
->>>>>>> origin/dev2
         layout.addWidget(self.graph)
 
         # Show the debug window

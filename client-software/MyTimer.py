@@ -2,8 +2,7 @@ from PySide6.QtCore import QObject, QTimer
 
 
 class MyTimer(QObject):
-    """Object ot create a timer for the GUI.
-       Calls a callback when reaching 0."""
+    """Timer which calls a callback function when reaching 0"""
 
     def __init__(self, interval_seconds, callback, parent=None):
         super().__init__(parent)
@@ -23,5 +22,4 @@ class MyTimer(QObject):
             self._timer.stop()
 
     def is_running(self):
-        """Returns the status of the timer """
         return self._timer.isActive()
