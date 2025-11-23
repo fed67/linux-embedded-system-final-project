@@ -1,10 +1,5 @@
-<<<<<<< HEAD
-from PySide6.QtWidgets import QApplication, QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QLineEdit, QMessageBox, QGridLayout, QCheckBox
-from PySide6.QtGui import QFont, QIcon, QPalette
-=======
 from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton, QLineEdit, QMessageBox, QGridLayout
 from PySide6.QtGui import QPalette
->>>>>>> origin/dev2
 from PySide6.QtCore import Qt, Signal, Slot
 
 from net.OnewireClient import OnewireClient
@@ -86,13 +81,7 @@ class ControlWidget(QWidget):
         self.setPalette(palette)
 
     def button_connect_signal(self):
-<<<<<<< HEAD
-        print("button clicked")
-        self.client_network = OnewireClient(self.line.text(),
-                                            self.line2.text(), self.log)
-=======
         self.client_network = OnewireClient(self.line.text(), self.line2.text(), self.log)
->>>>>>> origin/dev2
 
         palette = self.palette()
         palette.setColor(self.backgroundRole(), Qt.green)
