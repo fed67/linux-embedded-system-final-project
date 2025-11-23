@@ -1,10 +1,10 @@
 [Unit]
-Description=My custom startup program
+Description=Startup for 1-Wire tcp-server
 After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/demon
+ExecStart=/usr/bin/tcp-server
 Restart=on-failure
 
 [Install]

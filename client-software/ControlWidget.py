@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 from PySide6.QtWidgets import QApplication, QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QLineEdit, QMessageBox, QGridLayout, QCheckBox
 from PySide6.QtGui import QFont, QIcon, QPalette
+=======
+from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton, QLineEdit, QMessageBox, QGridLayout
+from PySide6.QtGui import QPalette
+>>>>>>> origin/dev2
 from PySide6.QtCore import Qt, Signal, Slot
 
 from net.OnewireClient import OnewireClient
@@ -9,8 +14,9 @@ from MyTimer import *
 
 
 class ControlWidget(QWidget):
-
-    signal_new_temperature = Signal((float, ))
+    """Initialize the TCP connection.
+       Read the temperature from DS18B20"""
+    signal_new_temperature = Signal((float,))
     disconnect_color = Qt.yellow
 
     def __init__(self, log: Callable[[str], None] = None, parent=None):
@@ -20,11 +26,13 @@ class ControlWidget(QWidget):
         self.log = log
 
     def init(self):
+        """Initialize the GUI elements."""
 
         self.layout = QGridLayout()
         self.layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setLayout(self.layout)
 
+        # TCP connectoion
         self.button0 = QPushButton("Connect")
         self.button0.clicked.connect(self.button_connect_signal)
 
@@ -54,6 +62,13 @@ class ControlWidget(QWidget):
         self.layout.addWidget(self.label2, 1, 1)
         self.layout.addWidget(self.line2, 1, 2)
 
+        # Change the color when connected
+        palette = self.palette()
+        palette.setColor(self.backgroundRole(), self.disconnect_color)
+        self.setAutoFillBackground(True)
+        self.setPalette(palette)
+
+        # Button to read from the sensor
         self.buttons = ActionWidget(parent=self)
         self.layout.addWidget(self.buttons, 2, 1)
         self.buttons.signal_read_id[int].connect(self.read_id)
@@ -61,10 +76,7 @@ class ControlWidget(QWidget):
             self.read_temperature)
         self.buttons.signal_set_enable_crc[int].connect(self.set_enable_crc)
 
-        palette = self.palette()
-        palette.setColor(self.backgroundRole(), self.disconnect_color)
-        self.setAutoFillBackground(True)
-        self.setPalette(palette)
+
 
     def button_close_signal(self):
         self.client_network = None
@@ -74,9 +86,13 @@ class ControlWidget(QWidget):
         self.setPalette(palette)
 
     def button_connect_signal(self):
+<<<<<<< HEAD
         print("button clicked")
         self.client_network = OnewireClient(self.line.text(),
                                             self.line2.text(), self.log)
+=======
+        self.client_network = OnewireClient(self.line.text(), self.line2.text(), self.log)
+>>>>>>> origin/dev2
 
         palette = self.palette()
         palette.setColor(self.backgroundRole(), Qt.green)
@@ -113,9 +129,14 @@ class ControlWidget(QWidget):
 
 class ActionWidget(QWidget):
     """
+<<<<<<< HEAD
         Action Widget
         Manages the button clicks and the checkboxes
         Send the 1-Wire commands to the raspberry (triggers the sending)
+=======
+        Action Widget to read from the sesor.
+        Each button click is transfered to the outside using the signals 'signal_read_id' and 'signal_read_temperature'
+>>>>>>> origin/dev2
     """
 
     signal_read_id = Signal((int, ))

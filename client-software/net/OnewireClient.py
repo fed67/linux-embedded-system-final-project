@@ -3,7 +3,8 @@ import time
 
 
 class OnewireClient:
-    """Provides an api for the onewire demon
+    """Provides communicates with the the onewire tcp-server.
+       Can read the temperature and the Device ID
     """
 
     def __init__(self, host, port, log=None):

@@ -33,9 +33,11 @@ volatile sig_atomic_t stop = 0;
 int server_fd, new_socket;
 struct sockaddr_in server_addr, client_addr;
 
-
-
-void handle_signal(int sig) {
+/**
+ * Signal handling
+ * Has a C style interface
+ */
+extern "C" void handle_signal(int sig) {
     std::cout << "sig " << sig << "\n";
     if (sig == SIGTERM || sig == SIGINT) {
         stop = 1;
@@ -46,7 +48,6 @@ void handle_signal(int sig) {
 
         exit(0);
     }
-    
 }
 
 std::vector<char> convert_to_bvec(std::string in) {
@@ -59,42 +60,12 @@ std::vector<char> convert_to_bvec(std::string in) {
         return r;        
 }
 
-std::string write_commands(const std::vector<char>& command, std::string device_name) {
-    std::string ret = "";
-    std::fstream fs;
-    fs.open(device_name, std::fstream::out );
-
-
-    if( !fs.is_open()) {
-        throw std::runtime_error("Error: onewire_driver is not open");
-    }
-
-    for(char c : command) {
-        fs.put(c);
-    }
-    fs.close();
-
-    sleep(1);
-
-    fs.open(device_name, std::fstream::in);
-
-    char c;
-    while(fs >>  c) {
-        ret.push_back(c);
-    }
-    fs.close(); 
-    
-    return ret;
-}
-
+/**
+ * Creates a tcp server
+ */
 void create_server(logger::Logger& log) {
     int opt = 1;
-    
-    
-    socklen_t server_addr_len = sizeof(server_addr);
-    socklen_t client_addr_len = sizeof(server_addr);
-    
-    char buffer[BUFFER_SIZE] = {0};
+
     // Creating socket file descriptor
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
         perror("socket failed");
@@ -122,12 +93,15 @@ void create_server(logger::Logger& log) {
         perror("listen");
         exit(EXIT_FAILURE);
     }
-    //return ;
-    std::cout << "Server listening on port " << PORT << std::endl;
+    
     log.log("Created TCP server");
+    log.log("Server listening on port ", PORT);
 }
 
-void communicate() {
+/**
+ * Accepts a new connection
+ */
+void wait_for_conenction() {
 
     socklen_t client_addr_len = sizeof(server_addr);
 
@@ -142,11 +116,14 @@ void communicate() {
     }
 }
 
-std::string write_commands(const std::vector<char>& command, std::vector<char>& result, std::string device_name) {
-    std::string ret;
+/**
+ * opens the driver and writes all commands
+ * then read all commands and returns the result
+ */
+std::string write_commands(const std::vector<char>& command, std::string device_name) {
+    std::string ret{""};
     std::fstream fs;
     fs.open(device_name, std::fstream::out );
-
 
     if( !fs.is_open()) {
         throw std::runtime_error("Error: onewire_driver is not open");
@@ -155,12 +132,11 @@ std::string write_commands(const std::vector<char>& command, std::vector<char>& 
     for(char c : command) {
         fs.put(c);
     }
-    //fs.flush();
     fs.close();
 
     sleep(1);
 
-  fs.open(device_name, std::fstream::in);
+    fs.open(device_name, std::fstream::in);
 
     char c;
     while(fs.good()) {
@@ -174,7 +150,9 @@ std::string write_commands(const std::vector<char>& command, std::vector<char>& 
 
 
 
-
+/** 
+ * Default way of creating a demon
+*/
 void demonize() {
     pid_t pid;
 
@@ -203,143 +181,116 @@ void demonize() {
         exit(EXIT_FAILURE);
     }
 
+    stop = 0;
+
     close(STDIN_FILENO);
     close(STDOUT_FILENO);
     close(STDERR_FILENO);
 }
 
+/**
+ * Arguments:
+ * -d: create the TCP server in a demon
+ * -m: send the measure temperature command
+ * -r: send a read scratchpad command
+ * [arg1 ]: Sends the command string to the 1-Wire driver
+ * else: starts the TCP server
+ */
 int main(int argc, char* argv[]) {
 
+    //register the signals
     signal(SIGTERM, handle_signal);
     signal(SIGINT, handle_signal);
 
-    logger::Logger log(".", "out.txt");
+    std::unique_ptr<logger::LogCout> sink = std::make_unique<logger::LogCout>();
+    logger::Logger log(std::move(sink));
 
+    //parse the arguments
     if(argc > 1) {
         if( std::string(argv[1]).compare("-d") == 0 ){ 
             std::cout << "demonize " << std::endl;
-            // demonize();
+            demonize();
             return 0;
         } else if( std::string(argv[1]).compare("-m") == 0 ){  //measure temperature
-            std::cout << "demonize " << std::endl;
+            log.log("measure temp");
             std::string s = write_commands({'C', 'T'}, DRIVER_PATH);
-            std::cout << "Got " << s << '\n';
-            // s = write_commands({'R', 'S'}, DRIVER_PATH);
-            // std::cout << "Got " << s << '\n';
-            // std::cout << "hex ";
-            // for(size_t i = 0; i < s.size(); ++i) {
-            //     std::cout << std::hex << (int) s[i] << " ";
-            // }
-            // std::cout << " end\n";
+            log.log("Got ", s);
 
-            // return 0;
-        } else if ( std::string(argv[1]).compare("-r") == 0 ){  //measure temperature
+            
+        } else if ( std::string(argv[1]).compare("-r") == 0 ){  //read scratchpad
             std::string s = write_commands({'R', 'S'}, DRIVER_PATH);
-            std::cout << "Got " << s << '\n';
-            std::cout << "hex ";
+            log.log("Got ", s);
+            std::ostringstream os;
             for(size_t i = 0; i < s.size(); ++i) {
-                std::cout << std::hex << (int) s[i] << " ";
+                os << std::hex << (int) s[i] << " ";
             }
-            std::cout << " end\n";
-        }
+            log.log("Got 0x",os.str());
+        } else { //write a chain of commands
+            std::string argument = "";
+            std::stringstream stream;
+            std::vector<char> char_arr;
 
-
-        std::string argument = "";
-        std::stringstream ss;
-        std::vector<char> char_arr;
-
-        for(int i = 2; i < argc; i++) {
-            std::string s{argv[i]};
-
-            if(i == 1) {
-                char_arr.push_back(s[0]);
-                if(s.size() > 1) 
-                    char_arr.push_back(s[1]);
+            if(argc > 2) {
+                log.log("Warning only argv[1] is used all others are ignored");
             }
 
-            if(s[0] == '0' and s[1] == 'x') {
+            int k = 0;
+            char c = argv[1][k];
+            while( c != '\0' ) {
+                char_arr.push_back(c);
+                stream << std::hex << c;
 
-                if(s.length() > 4 and s.length() == 2 ) {
-                    throw std::runtime_error("Error input must be hex");
-                }
-                std::string s2(s.begin()+2, s.end());
-                //ss << std::hex << s2;
-                std::cout << "s " << s << " s2 " << s2 << "\n";
-
-                const long l = strtol(s.c_str()+2, NULL, 16);
-                char_arr.push_back( (char) l);
-                std::cout << "l " << l << std::endl;
-                ss << std::hex << l;
+                c = argv[1][++k];
             }
+            log.log("converted ", stream.str());
+            write_commands(char_arr, DRIVER_PATH);
         }
-
-        std::cout << "ss " << ss.str()  << "\n";
-        std::vector<char> result;
-        write_commands(char_arr, result, "/dev/onewire_dev");
-        
-        for(char c : result ) {
-            std::cout << c << " ";
-        }
-        std::cout << "\n";
-    
     } else {
-        std::cout << "TCP server \n";
+        log.log("TCP server");
         
         create_server(log);
 
-        std::cout << "Accept server \n";
+        log.log("Accept server");
         while (true) {
-            communicate();
+            wait_for_conenction();
 
             char client_ip[INET_ADDRSTRLEN];
             inet_ntop(AF_INET, &(client_addr.sin_addr), client_ip, INET_ADDRSTRLEN);
 
             int client_port = ntohs(client_addr.sin_port);
-
-            std::cout << "connection accepted \n";
+            log.log("connection accepted at port ", client_port);
 
             char bufa[256];
             const int buf_size = 256;
 
             while(ssize_t bytes_read = read(new_socket, bufa, buf_size-1)) {
 
-
-                std::cout << "Reading... \n";
-                // ssize_t bytes_read = read(new_socket, bufa, buf_size-1);
+                log.log("Reading...");
                 if(bytes_read > 0) {
                     bufa[bytes_read] = '\0';
                 } else if( bytes_read == 0) {
-                    std:: cout << "Closing connection" << "\n";
+                    log.log("Closing connection");
                     break;
                 } else {
-                    // throw std::runtime_error("Error reading buffer got " + std::to_string(bytes_read) );
+                    throw std::runtime_error("Error reading buffer got " + std::to_string(bytes_read) );
                 }
                 std::string buf;
 
                 for(int i = 0; i < bytes_read; i++) {
-                    std::cout << bufa[i] << " ";
                     buf.push_back(bufa[i]);
                 }
-                std::cout << "\n";
                 
-                
-                std::cout << "Got " << bytes_read << " " << buf << "\n";
+                log.log("Got ", bytes_read, " ", buf);
                 std::vector<char> char_arr = convert_to_bvec(buf);
                 
+                std::string s = write_commands(char_arr, "/dev/onewire_dev");
                 
-                std::vector<char> result;
-                std::string s = write_commands(char_arr, result, "/dev/onewire_dev");
-                
-                std::cout << "send string " << s << "\n";
+                log.log("send string", s);
                 write(new_socket, s.c_str(), s.length());
-                //write(new_socket, bufa, bytes_read); 
             }
-            sleep(1);
             close(new_socket);
-            std::cout << "scket closed \n";
+            log.log("socket closed");
         }
-        std::cout << "broke while \n";
-        sleep(1);        
         close(server_fd);
     } 
 

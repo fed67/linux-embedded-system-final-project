@@ -319,8 +319,6 @@ onewire_write (struct file *filp, const char __user *buf, size_t count, loff_t *
     *f_pos += count;
     bytes_written = count;
 
-    pr_info ("copy_from user space scceeded\n");
-
     if (count > 0)
     {
         if (s_dev->kernel_buffer[0] == 'r')

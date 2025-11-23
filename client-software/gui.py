@@ -11,7 +11,8 @@ from DebugWindow import DebugWindow
 
 class Window(QMainWindow):
     """
-        Main Window
+        Main Window.
+        Has a 
     """
     def __init__(self):
         super().__init__()
@@ -34,30 +35,31 @@ class Window(QMainWindow):
         layout = QVBoxLayout()
         self.widget.setLayout(layout)
 
+        # Debug window shows debug messages
         self.debugWindow = DebugWindow()
         self.debugWindow.show()
         self.debugWindow.setVisible(False)
 
-        self.element0 =  ControlWidget(self.debugWindow.append_message)
-        layout.addWidget(self.element0)
+        # Control Widget shows 
+        self.control_widget =  ControlWidget(self.debugWindow.append_message)
+        layout.addWidget(self.control_widget)
+        self.control_widget.signal_new_temperature[float].connect(self.update_temp)
 
+        # Graph
         now = QDateTime.currentDateTime()
+<<<<<<< HEAD
 
         self.graph = Graph2D(data=[[ now.addSecs(i) for i in range(0, 3) ], [0, 1, 2]])
+=======
+        self.graph = Graph2D(data=[[ now.addSecs(i) for i in range(0, 5) ], [-1, -2, -4.4, 2, -6]])
+>>>>>>> origin/dev2
         layout.addWidget(self.graph)
 
+        # Show the debug window
         self.debug_button = QPushButton("Debug")
         self.debug_button.clicked.connect(self.connect_debug_window)
         layout.addWidget(self.debug_button)
 
-        self.element0.signal_new_temperature[float].connect(self.update_temp)
-
-        
-    def connect_server(self,tp):
-        host, port = tp
-        print(f"{host=} {port=}")
-        #self.client = OnewireClient(host, port)
-        #client.read_temp()
 
     def connect_debug_window(self):
         self.debugWindow.setVisible( not self.debugWindow.isVisible())
@@ -69,7 +71,6 @@ class Window(QMainWindow):
         now = QDateTime.currentDateTime()
 
         print(f"{now=}, {tmp=}")
-
 
         self.graph.data_update( [[now], [tmp]] )
         self.update()
