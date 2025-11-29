@@ -77,6 +77,18 @@ static const uint8_t onewire_crc8_table[256] = {
     0x74, 0x2A, 0xC8, 0x96, 0x15, 0x4B, 0xA9, 0xF7, 0xB6, 0xE8, 0x0A, 0x54, 0xD7, 0x89, 0x6B, 0x35
 };
 
+static write_response_char(char c) {
+    struct read_data_t *result = kmalloc (sizeof (struct read_data_t), GFP_KERNEL);
+    for (int i = 0; i < 8; i++)
+    {
+        result->data[i] = 0;
+    }
+    result->data[0] = c;
+    result->size = 8;
+
+    kfifo_put (&result_fifo, result); 
+}
+
 /**
  * Compares 2 strings
  * returns 0 on failure, 1 on success
@@ -163,6 +175,7 @@ write_cmd (struct gpio_desc *request, char *data, size_t length)
 static uint8_t
 read_cmd (struct gpio_desc *request, char *data, size_t length)
 {
+    printk("read_cmd \n");
     unsigned long flags;
     local_irq_save (flags);
 
@@ -182,12 +195,12 @@ read_cmd (struct gpio_desc *request, char *data, size_t length)
 
             if (rd == 0)
             {
-                // printk ("Read 0 \n");
+                printk ("Read 0 \n");
                 read_bits = read_bits >> 1;
             }
             else
             {
-                // printk ("Read 1 \n");
+                printk ("Read 1 \n");
                 read_bits = (read_bits >> 1) | 0x80; // put a '1' at bit 7
             }
 
@@ -230,7 +243,7 @@ reset (struct gpio_desc *request)
     // int ret = wait_until_rising_edge (request);
     // printk ("ret wait %i \n", ret);
 
-    udelay (200);
+    udelay (500);
 }
 
 /**
@@ -388,6 +401,7 @@ onewire_write (struct file *filp, const char __user *buf, size_t count, loff_t *
         }
         else if (string_cmp (s_dev->kernel_buffer, "FLUSH", 5)) // Flush the FIFO
         {
+            printk ("FLUSH \n");
             printk ("KFIFO length %u \n", kfifo_len (&result_fifo));
             unsigned int kfifo_len = kfifo_len (&result_fifo);
 
@@ -404,8 +418,7 @@ onewire_write (struct file *filp, const char __user *buf, size_t count, loff_t *
                     pr_err ("Error in 'FLUSH' can not free at iteration index %u ", off);
                 }
             }
-            // flush the fifo
-            kfifo_reset_out (&result_fifo);
+
             printk ("KFIFO length %u \n", kfifo_len (&result_fifo));
         }
         else if (string_cmp (s_dev->kernel_buffer, "SIZE", 4)) // Get FIFO size
